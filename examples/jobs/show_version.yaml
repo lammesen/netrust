@@ -1,0 +1,9 @@
+name: Audit Show Version
+kind:
+  type: command_batch
+  commands:
+    - show version
+targets:
+  mode: all
+dry_run: false
+

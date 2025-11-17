@@ -1,0 +1,30 @@
+devices:
+  - id: core-r1
+    name: Core-R1
+    device_type: CiscoIos
+    mgmt_address: 10.0.0.1
+    credential:
+      name: lab-default
+    tags:
+      - site:oslo
+      - role:core
+    capabilities:
+      supports_commit: false
+      supports_rollback: false
+      supports_diff: false
+      supports_dry_run: false
+  - id: edge-j1
+    name: Edge-J1
+    device_type: JuniperJunos
+    mgmt_address: 10.0.0.2
+    credential:
+      name: lab-default
+    tags:
+      - site:oslo
+      - role:edge
+    capabilities:
+      supports_commit: true
+      supports_rollback: true
+      supports_diff: true
+      supports_dry_run: true
+

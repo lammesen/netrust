@@ -1,0 +1,3 @@
+[http]
+cainfo = "/Users/mlt/Documents/Development/netrust/certs/cacert.pem"
+

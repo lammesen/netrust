@@ -1,0 +1,15 @@
+[workspace]
+members = [
+    "spikes/ssh_poc",
+    "spikes/netconf_poc",
+    "spikes/tauri_poc/src-tauri",
+    "spikes/wasm_host",
+    "spikes/wasm_plugin",
+    "crates/nauto_model",
+    "crates/nauto_drivers",
+    "crates/nauto_engine",
+    "crates/nauto_security",
+    "apps/nauto_cli",
+]
+resolver = "2"
+

@@ -1,0 +1,13 @@
+[package]
+name = "nauto_security"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1"
+async-trait = "0.1"
+keyring = "2"
+nauto_model = { path = "../nauto_model" }
+serde_json = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+

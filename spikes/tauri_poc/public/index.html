@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Network Automation Tauri Spike</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+      :root {
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: #0f172a;
+        color: #e2e8f0;
+      }
+      body {
+        margin: 0;
+        display: grid;
+        place-items: center;
+        min-height: 100vh;
+      }
+      main {
+        padding: 2rem;
+        border: 1px solid #334155;
+        border-radius: 1rem;
+        background: #1e293b;
+        width: min(420px, 90vw);
+      }
+      button {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border: none;
+        border-radius: 0.5rem;
+        background: #38bdf8;
+        color: #0f172a;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      button:disabled {
+        opacity: 0.6;
+        cursor: progress;
+      }
+      pre {
+        margin-top: 1rem;
+        padding: 1rem;
+        background: #020617;
+        border-radius: 0.5rem;
+        max-height: 240px;
+        overflow: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Tauri IPC Spike</h1>
+      <p>Click the button to invoke a Rust command (mock job summary).</p>
+      <button id="invoke">Fetch Mock Job Stats</button>
+      <pre id="output">Waiting…</pre>
+    </main>
+    <script type="module">
+      const invokeBtn = document.getElementById("invoke");
+      const output = document.getElementById("output");
+
+      async function fetchStats() {
+        invokeBtn.disabled = true;
+        output.textContent = "Collecting…";
+        try {
+          const payload = await window.__TAURI__.invoke("mock_job_summary");
+          output.textContent = JSON.stringify(payload, null, 2);
+        } catch (err) {
+          output.textContent = `IPC failed: ${err}`;
+        } finally {
+          invokeBtn.disabled = false;
+        }
+      }
+
+      invokeBtn.addEventListener("click", fetchStats);
+    </script>
+  </body>
+</html>
+

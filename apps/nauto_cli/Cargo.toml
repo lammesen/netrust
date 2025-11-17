@@ -1,0 +1,22 @@
+[package]
+name = "nauto_cli"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+crossterm = "0.27"
+nauto_drivers = { path = "../../crates/nauto_drivers" }
+nauto_engine = { path = "../../crates/nauto_engine" }
+nauto_model = { path = "../../crates/nauto_model" }
+nauto_security = { path = "../../crates/nauto_security" }
+ratatui = "0.27"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml = "0.9"
+tokio = { version = "1", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter", "json"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+
