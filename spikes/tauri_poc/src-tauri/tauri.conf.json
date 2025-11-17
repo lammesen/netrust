@@ -1,25 +1,22 @@
 {
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "NetworkAutomationSpike",
+  "version": "0.1.0",
+  "identifier": "com.netrust.spike",
   "build": {
-    "beforeBuildCommand": "",
     "beforeDevCommand": "",
-    "devPath": "../public",
-    "distDir": "../public"
+    "beforeBuildCommand": "",
+    "frontendDist": "../public",
+    "devUrl": "http://localhost:5173"
   },
-  "package": {
-    "productName": "NetworkAutomationSpike",
-    "version": "0.1.0"
-  },
-  "tauri": {
+  "app": {
     "windows": [
       {
         "title": "Network Automation GUI Spike",
         "width": 1024,
         "height": 768
       }
-    ],
-    "allowlist": {
-      "all": true
-    }
+    ]
   }
 }
 
