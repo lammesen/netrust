@@ -9,6 +9,7 @@ nauto_cli transactions \
   --canary-size 5 \
   --batch-size 50
 ```
+- Both `--canary-size` and `--batch-size` must be greater than zero; the CLI now validates inputs up front to avoid runtime hangs.
 
 Generates a YAML plan listing:
 - `canary`: first N devices to test change.

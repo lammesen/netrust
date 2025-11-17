@@ -29,6 +29,7 @@ The initial driver set covers the three MVP platforms referenced in `plan.md` Se
 ## Meraki Cloud Driver
 - Module: `nauto_drivers::drivers::meraki_cloud`
 - Represents REST-based operations against Meraki Dashboard APIs (org/network derived from `mgmt_address`).
+- Resolves API tokens from the `KeyringStore` credential reference and propagates HTTP errors if the dashboard rejects a request.
 - Rollback modeled as template reversion call.
 
 ### Registry

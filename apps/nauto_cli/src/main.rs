@@ -1,18 +1,18 @@
+mod approvals;
 mod audit;
 mod bench;
-mod approvals;
 mod compliance;
 mod gitops;
 mod integrations;
 mod notifications;
-mod worker;
-mod transactions;
 mod observability;
-mod telemetry;
 mod scheduler;
+mod telemetry;
+mod transactions;
 mod tui;
+mod worker;
 
-use anyhow::Result;
+use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand};
 use nauto_drivers::drivers::{
     AristaEosDriver, CiscoIosDriver, CiscoNxosApiDriver, GenericSshDriver, JuniperJunosDriver,
@@ -23,6 +23,7 @@ use nauto_engine::{InMemoryInventory, JobEngine};
 use nauto_model::{Credential, CredentialRef, Device, Job, JobKind, TargetSelector};
 use nauto_security::{CredentialStore, KeyringStore};
 use serde::Deserialize;
+use std::io::{self, Read};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tracing::info;
@@ -55,8 +56,24 @@ enum Commands {
         name: String,
         #[arg(long)]
         username: String,
-        #[arg(long)]
-        password: String,
+        #[arg(
+            long,
+            help = "Provide the password directly (not recommended; use only in CI)"
+        )]
+        password: Option<String>,
+        #[arg(
+            long = "password-stdin",
+            default_value_t = false,
+            help = "Read the password from STDIN (trailing newlines are trimmed)",
+            conflicts_with = "password_prompt"
+        )]
+        password_stdin: bool,
+        #[arg(
+            long = "password-prompt",
+            default_value_t = false,
+            help = "Force an interactive password prompt even if STDIN is piped"
+        )]
+        password_prompt: bool,
     },
     /// Launch the terminal UI dashboard
     Tui {
@@ -124,7 +141,13 @@ async fn main() -> Result<()> {
             name,
             username,
             password,
-        } => store_credentials(name, username, password).await?,
+            password_stdin,
+            password_prompt,
+        } => {
+            let password_value = resolve_password(password, password_stdin, password_prompt)
+                .context("password input")?;
+            store_credentials(name, username, password_value).await?
+        }
         Commands::Tui { inventory } => run_tui(inventory).await?,
         Commands::Compliance(cmd) => compliance::run(cmd)?,
         Commands::Schedule(cmd) => scheduler::run(cmd)?,
@@ -150,7 +173,12 @@ fn init_tracing() {
         .init();
 }
 
-async fn run_job(job_path: PathBuf, inventory_path: PathBuf, audit_path: PathBuf, dry_run: bool) -> Result<()> {
+async fn run_job(
+    job_path: PathBuf,
+    inventory_path: PathBuf,
+    audit_path: PathBuf,
+    dry_run: bool,
+) -> Result<()> {
     let job_file = load_job(&job_path)?;
     let mut job: Job = job_file.into();
     if dry_run {
@@ -177,6 +205,56 @@ async fn store_credentials(name: String, username: String, password: String) -> 
     store.store(&reference, &credential).await?;
     println!("Stored credential {}", reference.name);
     Ok(())
+}
+
+fn resolve_password(
+    password_flag: Option<String>,
+    password_stdin: bool,
+    password_prompt: bool,
+) -> Result<String> {
+    if let Some(value) = password_flag {
+        eprintln!("warning: --password exposes secrets via argv; prefer --password-prompt or --password-stdin");
+        return Ok(value);
+    }
+
+    if password_stdin {
+        return read_password_from_stdin();
+    }
+
+    if password_prompt {
+        return prompt_for_password();
+    }
+
+    if atty::is(atty::Stream::Stdin) {
+        return prompt_for_password();
+    }
+
+    bail!(
+        "stdin is not a TTY; provide --password-stdin for automation or --password-prompt to force interactive entry"
+    );
+}
+
+fn prompt_for_password() -> Result<String> {
+    let password = rpassword::prompt_password("Credential password: ")
+        .context("reading password interactively")?;
+    if password.is_empty() {
+        bail!("password cannot be empty");
+    }
+    Ok(password)
+}
+
+fn read_password_from_stdin() -> Result<String> {
+    let mut buffer = String::new();
+    io::stdin()
+        .read_to_string(&mut buffer)
+        .context("reading password from stdin")?;
+    let password = buffer
+        .trim_end_matches(|c| c == '\n' || c == '\r')
+        .to_string();
+    if password.is_empty() {
+        bail!("password from stdin cannot be empty");
+    }
+    Ok(password)
 }
 
 async fn run_tui(inventory_path: PathBuf) -> Result<()> {
@@ -220,4 +298,3 @@ fn driver_registry() -> DriverRegistry {
         Arc::new(MerakiCloudDriver::default()),
     ])
 }
-

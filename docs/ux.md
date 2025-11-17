@@ -4,7 +4,7 @@
 - Binary: `nauto_cli`
 - Commands:
   - `nauto_cli run --job examples/jobs/show_version.yaml --inventory examples/inventory.yaml [--dry-run]`
-  - `nauto_cli creds --name lab-default --username admin --password *****`
+  - `nauto_cli creds --name lab-default --username admin --password-prompt`
   - `nauto_cli tui --inventory examples/inventory.yaml`
 - Outputs JSON audit lines to `logs/audit.log` for each job.
 

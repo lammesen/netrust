@@ -5,7 +5,16 @@
 - Node.js + Tauri dependencies (if running GUI).
 - Access to NetBox export (optional) and target inventory credentials stored via `nauto_cli creds`.
 
-## 2. Import Inventory (NetBox)
+## 2. Store Credentials
+```bash
+nauto_cli creds \
+  --name lab-default \
+  --username admin \
+  --password-prompt
+```
+- Use `--password-stdin` in CI pipelines where interactive prompts are not available.
+
+## 3. Import Inventory (NetBox)
 ```bash
 nauto_cli integrations netbox-import \
   --file examples/netbox_devices.json \
@@ -13,7 +22,7 @@ nauto_cli integrations netbox-import \
   --credential lab-default
 ```
 
-## 3. Request Approval
+## 4. Request Approval
 ```bash
 nauto_cli approvals request \
   --job examples/jobs/show_version.yaml \
@@ -21,7 +30,7 @@ nauto_cli approvals request \
   --note "NTP refresh"
 ```
 
-## 4. Plan Transaction
+## 5. Plan Transaction
 ```bash
 nauto_cli transactions \
   --job examples/jobs/show_version.yaml \
@@ -30,22 +39,22 @@ nauto_cli transactions \
   --canary-size 5 --batch-size 25
 ```
 
-## 5. Execute (CLI or GUI)
+## 6. Execute (CLI or GUI)
 - CLI: `nauto_cli run --job examples/jobs/show_version.yaml --inventory inventory_netbox.yaml`
 - GUI: `cd spikes/tauri_poc && cargo tauri dev` then use Job Wizard.
 
-## 6. Telemetry & Observability
+## 7. Telemetry & Observability
 ```bash
 nauto_cli telemetry --format json
 nauto_cli observability
 ```
 
-## 7. Distributed Worker (Preview)
+## 8. Distributed Worker (Preview)
 ```bash
 NAUTO_QUEUE=queue/jobs.jsonl cargo run -p nauto_cli --bin worker_daemon
 ```
 
-## 8. Marketplace Plugins
+## 9. Marketplace Plugins
 ```bash
 nauto_cli marketplace list
 nauto_cli marketplace install --name "VendorX Experimental"

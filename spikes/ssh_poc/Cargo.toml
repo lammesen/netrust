@@ -5,7 +5,11 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1"
-async-ssh2-tokio = "0.11"
+async-ssh2-tokio = { version = "0.11", optional = true }
 clap = { version = "4", features = ["derive"] }
 tokio = { version = "1", features = ["full"] }
+
+[features]
+default = []
+real-ssh = ["async-ssh2-tokio"]
 

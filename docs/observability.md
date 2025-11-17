@@ -5,6 +5,7 @@
 nauto_cli observability
 ```
 - Emits Prometheus-formatted counters/gauges (jobs_total, jobs_failed_total, queue_depth).
+- Pass `--format json` for a structured snapshot that tooling/QA dashboards can parse without scraping logic.
 - Intended to be scraped via cron or piped into a lightweight HTTP exporter.
 - Job engine now emits `device_task` tracing spans per device/job execution for correlation.
 
