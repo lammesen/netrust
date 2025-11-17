@@ -6,4 +6,5 @@ edition = "2021"
 [dependencies]
 anyhow = "1"
 wasmtime = "21"
+nauto_plugin_sdk = { path = "../../crates/nauto_plugin_sdk" }
 

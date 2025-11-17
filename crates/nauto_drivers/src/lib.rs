@@ -52,7 +52,10 @@ impl DriverRegistry {
 
 #[cfg(test)]
 mod tests {
-    use super::drivers::{CiscoIosDriver, GenericSshDriver, JuniperJunosDriver};
+    use super::drivers::{
+        AristaEosDriver, CiscoIosDriver, CiscoNxosApiDriver, GenericSshDriver, JuniperJunosDriver,
+        MerakiCloudDriver,
+    };
     use super::*;
 
     #[tokio::test]
@@ -61,6 +64,9 @@ mod tests {
             Arc::new(CiscoIosDriver::default()),
             Arc::new(JuniperJunosDriver::default()),
             Arc::new(GenericSshDriver::default()),
+            Arc::new(AristaEosDriver::default()),
+            Arc::new(CiscoNxosApiDriver::default()),
+            Arc::new(MerakiCloudDriver::default()),
         ]);
 
         let ios = registry.find(&nauto_model::DeviceType::CiscoIos).unwrap();
@@ -71,6 +77,15 @@ mod tests {
 
         let generic = registry.find(&nauto_model::DeviceType::GenericSsh).unwrap();
         assert_eq!(generic.capabilities().supports_commit, false);
+
+        let arista = registry.find(&nauto_model::DeviceType::AristaEos).unwrap();
+        assert_eq!(arista.name(), "Arista EOS CLI");
+
+        let nxos = registry.find(&nauto_model::DeviceType::CiscoNxosApi).unwrap();
+        assert!(nxos.capabilities().supports_diff);
+
+        let meraki = registry.find(&nauto_model::DeviceType::MerakiCloud).unwrap();
+        assert!(meraki.capabilities().supports_rollback);
     }
 }
 

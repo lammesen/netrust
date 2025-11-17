@@ -2,77 +2,242 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>Network Automation Tauri Spike</title>
+    <title>Network Automation Control Center</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <style>
       :root {
-        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         background: #0f172a;
-        color: #e2e8f0;
+        color: #f8fafc;
       }
       body {
         margin: 0;
-        display: grid;
-        place-items: center;
-        min-height: 100vh;
-      }
-      main {
         padding: 2rem;
-        border: 1px solid #334155;
-        border-radius: 1rem;
+        background: #0f172a;
+      }
+      h1 {
+        margin-bottom: 1rem;
+      }
+      .grid {
+        display: grid;
+        gap: 1.25rem;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      }
+      section {
         background: #1e293b;
-        width: min(420px, 90vw);
+        border: 1px solid #334155;
+        border-radius: 0.75rem;
+        padding: 1rem 1.25rem;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.9rem;
+      }
+      th,
+      td {
+        border-bottom: 1px solid #334155;
+        padding: 0.35rem;
+        text-align: left;
+      }
+      th {
+        font-weight: 600;
+      }
+      form {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+      input,
+      select,
+      textarea {
+        padding: 0.5rem;
+        border-radius: 0.5rem;
+        border: 1px solid #475569;
+        background: #0f172a;
+        color: inherit;
       }
       button {
-        width: 100%;
-        padding: 0.75rem 1rem;
         border: none;
         border-radius: 0.5rem;
-        background: #38bdf8;
-        color: #0f172a;
-        font-size: 1rem;
+        padding: 0.65rem 1rem;
         font-weight: 600;
+        color: #0f172a;
+        background: #38bdf8;
         cursor: pointer;
       }
-      button:disabled {
-        opacity: 0.6;
-        cursor: progress;
-      }
       pre {
-        margin-top: 1rem;
-        padding: 1rem;
-        background: #020617;
+        background: #0f172a;
         border-radius: 0.5rem;
-        max-height: 240px;
+        padding: 0.75rem;
+        max-height: 220px;
         overflow: auto;
+      }
+      .tag {
+        background: #334155;
+        border-radius: 999px;
+        padding: 0.1rem 0.5rem;
+        font-size: 0.75rem;
+        margin-right: 0.25rem;
       }
     </style>
   </head>
   <body>
-    <main>
-      <h1>Tauri IPC Spike</h1>
-      <p>Click the button to invoke a Rust command (mock job summary).</p>
-      <button id="invoke">Fetch Mock Job Stats</button>
-      <pre id="output">Waiting…</pre>
-    </main>
-    <script type="module">
-      const invokeBtn = document.getElementById("invoke");
-      const output = document.getElementById("output");
+    <h1>Network Automation Control Center</h1>
+    <div class="grid">
+      <section>
+        <h2>Inventory</h2>
+        <table id="inventory-table">
+          <thead>
+            <tr>
+              <th>Device</th>
+              <th>Type</th>
+              <th>Tags</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </section>
 
-      async function fetchStats() {
-        invokeBtn.disabled = true;
-        output.textContent = "Collecting…";
+      <section>
+        <h2>Job Wizard</h2>
+        <form id="job-form">
+          <input name="name" placeholder="Job name" required />
+          <select name="job_type">
+            <option value="command_batch">Command Batch</option>
+            <option value="config_push">Config Push</option>
+          </select>
+          <input name="target" placeholder="Target filter (e.g. site:oslo)" required />
+          <textarea name="payload" rows="4" placeholder="Commands or config snippet" required></textarea>
+          <label>
+            <input type="checkbox" name="dry_run" />
+            Dry run
+          </label>
+          <button type="submit">Plan Job</button>
+        </form>
+        <pre id="job-output">Awaiting job...</pre>
+      </section>
+
+      <section>
+        <h2>Scheduling</h2>
+        <form id="schedule-form">
+          <input name="name" placeholder="Schedule name" required />
+          <input name="cron" placeholder="Cron expression (e.g. 0 2 * * *)" required />
+          <button type="submit">Add Schedule</button>
+        </form>
+        <pre id="schedule-list">No schedules yet.</pre>
+      </section>
+
+      <section>
+        <h2>Compliance</h2>
+        <button id="refresh-compliance" style="margin-bottom:0.5rem;">Refresh Snapshot</button>
+        <pre id="compliance-panel">Loading...</pre>
+      </section>
+    </div>
+
+    <script type="module">
+      const { invoke } = window.__TAURI__;
+
+      async function refreshInventory() {
+        const tbody = document.querySelector("#inventory-table tbody");
+        tbody.innerHTML = "<tr><td colspan='3'>Loading...</td></tr>";
         try {
-          const payload = await window.__TAURI__.invoke("mock_job_summary");
-          output.textContent = JSON.stringify(payload, null, 2);
+          const devices = await invoke("list_inventory");
+          tbody.innerHTML = devices
+            .map(
+              (dev) => `<tr>
+                <td>${dev.name}</td>
+                <td>${dev.device_type}</td>
+                <td>${dev.tags.map((t) => `<span class="tag">${t}</span>`).join("")}</td>
+              </tr>`
+            )
+            .join("");
         } catch (err) {
-          output.textContent = `IPC failed: ${err}`;
-        } finally {
-          invokeBtn.disabled = false;
+          tbody.innerHTML = `<tr><td colspan="3">Failed: ${err}</td></tr>`;
         }
       }
 
-      invokeBtn.addEventListener("click", fetchStats);
+      async function refreshSchedules() {
+        const panel = document.querySelector("#schedule-list");
+        try {
+          const schedules = await invoke("list_schedules");
+          if (!schedules.length) {
+            panel.textContent = "No schedules defined.";
+            return;
+          }
+          panel.textContent = schedules
+            .map((job) => `${job.name} | ${job.cron} | next: ${job.next_run}`)
+            .join("\n");
+        } catch (err) {
+          panel.textContent = `Failed: ${err}`;
+        }
+      }
+
+      async function refreshCompliance() {
+        const panel = document.querySelector("#compliance-panel");
+        panel.textContent = "Collecting...";
+        try {
+          const snapshot = await invoke("compliance_snapshot");
+          const lines = [`Generated: ${snapshot.generated_at}`, ""];
+          for (const result of snapshot.results) {
+            lines.push(
+              `${result.passed ? "✅" : "⚠️"} ${result.rule} ${
+                result.affected.length ? "- affected: " + result.affected.join(", ") : ""
+              }`
+            );
+          }
+          panel.textContent = lines.join("\n");
+        } catch (err) {
+          panel.textContent = `Failed: ${err}`;
+        }
+      }
+
+      document.querySelector("#job-form").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const form = event.target;
+        const payload = {
+          name: form.name.value,
+          job_type: form.job_type.value,
+          target: form.target.value,
+          payload: form.payload.value,
+          dry_run: form.dry_run.checked,
+        };
+        const output = document.querySelector("#job-output");
+        output.textContent = "Submitting...";
+        try {
+          const summary = await invoke("create_job", { request: payload });
+          output.textContent = JSON.stringify(summary, null, 2);
+        } catch (err) {
+          output.textContent = `Failed: ${err}`;
+        }
+      });
+
+      document.querySelector("#schedule-form").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const form = event.target;
+        try {
+          await invoke("add_schedule", {
+            request: {
+              name: form.name.value,
+              cron: form.cron.value,
+            },
+          });
+          form.reset();
+          await refreshSchedules();
+        } catch (err) {
+          alert(`Failed to add schedule: ${err}`);
+        }
+      });
+
+      document
+        .querySelector("#refresh-compliance")
+        .addEventListener("click", refreshCompliance);
+
+      (async function bootstrap() {
+        await refreshInventory();
+        await refreshSchedules();
+        await refreshCompliance();
+      })();
     </script>
   </body>
 </html>

@@ -9,7 +9,7 @@ use nauto_model::{Job, JobResult, TaskStatus, TaskSummary};
 use std::sync::Arc;
 use thiserror::Error;
 use tokio::sync::Semaphore;
-use tracing::{error, info, instrument};
+use tracing::{error, info, info_span, instrument};
 
 #[derive(Error, Debug)]
 pub enum JobEngineError {
@@ -83,6 +83,12 @@ async fn run_device(
     dry_run: bool,
     permit: tokio::sync::OwnedSemaphorePermit,
 ) -> TaskSummary {
+    let span = info_span!(
+        "device_task",
+        device = %device.name,
+        job_kind = job_kind_label(&job_kind)
+    );
+    let _enter = span.enter();
     let start = chrono::Utc::now();
 
     let summary = match driver {
@@ -146,6 +152,14 @@ async fn execute_with_driver(
     }
 
     driver.execute(device, DriverAction::Job(&job_kind)).await
+}
+
+fn job_kind_label(kind: &nauto_model::JobKind) -> &'static str {
+    match kind {
+        nauto_model::JobKind::CommandBatch { .. } => "command_batch",
+        nauto_model::JobKind::ConfigPush { .. } => "config_push",
+        nauto_model::JobKind::ComplianceCheck { .. } => "compliance_check",
+    }
 }
 
 #[cfg(test)]

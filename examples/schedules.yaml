@@ -1,0 +1,8 @@
+schedules:
+  - name: nightly-compliance
+    cron: "0 2 * * *"
+    job: "examples/jobs/show_version.yaml"
+  - name: hourly-telemetry
+    cron: "0 * * * *"
+    job: "scripts/pull_telemetry.sh"
+

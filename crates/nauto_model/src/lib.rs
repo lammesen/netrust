@@ -10,6 +10,9 @@ pub enum DeviceType {
     CiscoIos,
     JuniperJunos,
     GenericSsh,
+    AristaEos,
+    CiscoNxosApi,
+    MerakiCloud,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

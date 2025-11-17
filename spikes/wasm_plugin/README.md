@@ -12,5 +12,5 @@ Then run the host with the compiled module:
 cargo run -p wasm_host -- target/wasm32-wasi/debug/wasm_plugin.wasm
 ```
 
-The host prints the vendor name and capability mask exported by this module, proving the sandboxed, cross-platform extension flow proposed in the plan.
+The plugin uses `nauto_plugin_sdk::export_plugin!` to declare vendor metadata + capability mask. The host loads the WASM module with Wasmtime, resolves the exported helpers, and prints the decoded capabilities.
 

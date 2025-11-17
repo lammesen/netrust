@@ -7,4 +7,5 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
+nauto_plugin_sdk = { path = "../../crates/nauto_plugin_sdk" }
 

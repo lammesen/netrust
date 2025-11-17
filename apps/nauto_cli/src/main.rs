@@ -1,9 +1,23 @@
 mod audit;
+mod bench;
+mod approvals;
+mod compliance;
+mod gitops;
+mod integrations;
+mod notifications;
+mod worker;
+mod transactions;
+mod observability;
+mod telemetry;
+mod scheduler;
 mod tui;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-use nauto_drivers::drivers::{CiscoIosDriver, GenericSshDriver, JuniperJunosDriver};
+use nauto_drivers::drivers::{
+    AristaEosDriver, CiscoIosDriver, CiscoNxosApiDriver, GenericSshDriver, JuniperJunosDriver,
+    MerakiCloudDriver,
+};
 use nauto_drivers::DriverRegistry;
 use nauto_engine::{InMemoryInventory, JobEngine};
 use nauto_model::{Credential, CredentialRef, Device, Job, JobKind, TargetSelector};
@@ -49,6 +63,30 @@ enum Commands {
         #[arg(long)]
         inventory: PathBuf,
     },
+    /// Run compliance checks and export reports
+    Compliance(compliance::ComplianceCmd),
+    /// Preview cron-based schedules
+    Schedule(scheduler::ScheduleCmd),
+    /// Sync configs to Git repository (GitOps)
+    GitOps(gitops::GitOpsCmd),
+    /// Manage approval workflow
+    Approvals(approvals::ApprovalsCmd),
+    /// Send workflow notifications
+    Notify(notifications::NotifyCmd),
+    /// Integrations (NetBox, ServiceNow, etc.)
+    Integrations(integrations::IntegrationsCmd),
+    /// Interact with plugin marketplace index
+    Marketplace(marketplace::MarketplaceCmd),
+    /// Run synthetic benchmark against mock drivers
+    Bench(bench::BenchCmd),
+    /// Plan staged change transactions
+    Transactions(transactions::TransactionsCmd),
+    /// Process queued jobs as a worker node
+    Worker(worker::WorkerCmd),
+    /// Emit Prometheus metrics snapshot
+    Observability(observability::ObservabilityCmd),
+    /// Run telemetry collectors and print snapshot
+    Telemetry(telemetry::TelemetryCmd),
 }
 
 #[derive(Debug, Deserialize)]
@@ -88,6 +126,18 @@ async fn main() -> Result<()> {
             password,
         } => store_credentials(name, username, password).await?,
         Commands::Tui { inventory } => run_tui(inventory).await?,
+        Commands::Compliance(cmd) => compliance::run(cmd)?,
+        Commands::Schedule(cmd) => scheduler::run(cmd)?,
+        Commands::GitOps(cmd) => gitops::run(cmd)?,
+        Commands::Approvals(cmd) => approvals::run(cmd)?,
+        Commands::Notify(cmd) => notifications::run(cmd).await?,
+        Commands::Integrations(cmd) => integrations::run(cmd)?,
+        Commands::Marketplace(cmd) => marketplace::run(cmd)?,
+        Commands::Bench(cmd) => bench::run(cmd).await?,
+        Commands::Transactions(cmd) => transactions::run(cmd)?,
+        Commands::Worker(cmd) => worker::run(cmd)?,
+        Commands::Observability(cmd) => observability::run(cmd)?,
+        Commands::Telemetry(cmd) => telemetry::run(cmd).await?,
     }
 
     Ok(())
@@ -165,6 +215,9 @@ fn driver_registry() -> DriverRegistry {
         Arc::new(CiscoIosDriver::default()),
         Arc::new(JuniperJunosDriver::default()),
         Arc::new(GenericSshDriver::default()),
+        Arc::new(AristaEosDriver::default()),
+        Arc::new(CiscoNxosApiDriver::default()),
+        Arc::new(MerakiCloudDriver::default()),
     ])
 }
 

@@ -1,0 +1,10 @@
+- name: Require NTP Server
+  description: Ensure at least one ntp server statement exists
+  expression: "ntp server"
+- name: Disallow Telnet
+  description: VTY lines must not enable telnet
+  expression: "not:transport input telnet"
+- name: SNMP Contact Set
+  description: Config should include snmp-server contact
+  expression: "contains:snmp-server contact"
+

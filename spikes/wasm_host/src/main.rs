@@ -1,4 +1,5 @@
 use anyhow::{Context, Result};
+use nauto_plugin_sdk::CapabilityMask;
 use std::path::PathBuf;
 use wasmtime::{Engine, Linker, Module, Store, TypedFunc};
 
@@ -16,14 +17,14 @@ fn main() -> Result<()> {
     let instance = linker.instantiate(&mut store, &module)?;
 
     let vendor_ptr: TypedFunc<(), i32> = instance
-        .get_typed_func(&mut store, "vendor_name_ptr")
-        .context("missing vendor_name_ptr export")?;
+        .get_typed_func(&mut store, "plugin_vendor_ptr")
+        .context("missing plugin_vendor_ptr export")?;
     let vendor_len: TypedFunc<(), i32> = instance
-        .get_typed_func(&mut store, "vendor_name_len")
-        .context("missing vendor_name_len export")?;
+        .get_typed_func(&mut store, "plugin_vendor_len")
+        .context("missing plugin_vendor_len export")?;
     let mask: TypedFunc<(), u32> = instance
-        .get_typed_func(&mut store, "capabilities_mask")
-        .context("missing capabilities_mask export")?;
+        .get_typed_func(&mut store, "plugin_capabilities")
+        .context("missing plugin_capabilities export")?;
 
     let ptr = vendor_ptr.call(&mut store, ())? as u32 as usize;
     let len = vendor_len.call(&mut store, ())? as usize;
@@ -38,13 +39,9 @@ fn main() -> Result<()> {
     let vendor = std::str::from_utf8(&vendor_bytes)?.to_owned();
 
     let mask_bits = mask.call(&mut store, ())?;
+    let capabilities = CapabilityMask::from_bits_retain(mask_bits);
     println!("Loaded plugin: {vendor}");
-    println!(
-        "Capabilities: commit={}, rollback={}, diff={}",
-        (mask_bits & 1) != 0,
-        (mask_bits & 2) != 0,
-        (mask_bits & 4) != 0
-    );
+    println!("Capabilities: {:?}", capabilities);
 
     Ok(())
 }

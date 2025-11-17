@@ -27,4 +27,46 @@ devices:
       supports_rollback: true
       supports_diff: true
       supports_dry_run: true
+  - id: agg-eos-1
+    name: Agg-EOS-1
+    device_type: AristaEos
+    mgmt_address: 10.0.0.3
+    credential:
+      name: lab-default
+    tags:
+      - site:oslo
+      - role:aggregate
+    capabilities:
+      supports_commit: false
+      supports_rollback: false
+      supports_diff: false
+      supports_dry_run: false
+  - id: spine-nxapi
+    name: Spine-NXAPI
+    device_type: CiscoNxosApi
+    mgmt_address: spine1.nxos.local
+    credential:
+      name: nxapi-token
+    tags:
+      - site:oslo
+      - role:spine
+    capabilities:
+      supports_commit: true
+      supports_rollback: true
+      supports_diff: true
+      supports_dry_run: true
+  - id: meraki-net-1
+    name: Meraki-Net-1
+    device_type: MerakiCloud
+    mgmt_address: network_ABC123
+    credential:
+      name: meraki-api
+    tags:
+      - site:remote
+      - role:wireless
+    capabilities:
+      supports_commit: false
+      supports_rollback: true
+      supports_diff: false
+      supports_dry_run: false
 
