@@ -22,7 +22,12 @@ struct QueueItem {
 
 pub fn run(cmd: WorkerCmd) -> Result<()> {
     let content = fs::read_to_string(&cmd.queue).context("read queue file")?;
-    for (idx, line) in content.lines().filter(|l| !l.is_empty()).take(cmd.limit).enumerate() {
+    for (idx, line) in content
+        .lines()
+        .filter(|l| !l.is_empty())
+        .take(cmd.limit)
+        .enumerate()
+    {
         let item: QueueItem = serde_json::from_str(line)?;
         if cmd.dry_run {
             println!(
@@ -43,4 +48,3 @@ pub fn run(cmd: WorkerCmd) -> Result<()> {
     }
     Ok(())
 }
-

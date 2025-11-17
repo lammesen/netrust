@@ -92,33 +92,31 @@ async fn run_device(
     let start = chrono::Utc::now();
 
     let summary = match driver {
-        Some(driver) => {
-            match execute_with_driver(&device, driver, job_kind, dry_run).await {
-                Ok(result) => TaskSummary {
+        Some(driver) => match execute_with_driver(&device, driver, job_kind, dry_run).await {
+            Ok(result) => TaskSummary {
+                device_id: device.id.clone(),
+                status: TaskStatus::Success,
+                started_at: Some(start),
+                finished_at: Some(chrono::Utc::now()),
+                logs: result.logs,
+                diff: result.diff,
+            },
+            Err(err) => {
+                error!(
+                    target: "engine::device",
+                    "device={} failed: {err:?}",
+                    device.name
+                );
+                TaskSummary {
                     device_id: device.id.clone(),
-                    status: TaskStatus::Success,
+                    status: TaskStatus::Failed,
                     started_at: Some(start),
                     finished_at: Some(chrono::Utc::now()),
-                    logs: result.logs,
-                    diff: result.diff,
-                },
-                Err(err) => {
-                    error!(
-                        target: "engine::device",
-                        "device={} failed: {err:?}",
-                        device.name
-                    );
-                    TaskSummary {
-                        device_id: device.id.clone(),
-                        status: TaskStatus::Failed,
-                        started_at: Some(start),
-                        finished_at: Some(chrono::Utc::now()),
-                        logs: vec![format!("error: {err}")],
-                        diff: None,
-                    }
+                    logs: vec![format!("error: {err}")],
+                    diff: None,
                 }
             }
-        }
+        },
         None => TaskSummary {
             device_id: device.id.clone(),
             status: TaskStatus::Skipped,
@@ -177,7 +175,9 @@ mod tests {
                 name: "core-r1".into(),
                 device_type: DeviceType::CiscoIos,
                 mgmt_address: "10.0.0.1".into(),
-                credential: CredentialRef { name: "default".into() },
+                credential: CredentialRef {
+                    name: "default".into(),
+                },
                 tags: vec!["site:oslo".into(), "role:core".into()],
                 capabilities: CapabilitySet::default(),
             },
@@ -186,7 +186,9 @@ mod tests {
                 name: "edge-j1".into(),
                 device_type: DeviceType::JuniperJunos,
                 mgmt_address: "10.0.0.2".into(),
-                credential: CredentialRef { name: "default".into() },
+                credential: CredentialRef {
+                    name: "default".into(),
+                },
                 tags: vec!["site:oslo".into(), "role:edge".into()],
                 capabilities: CapabilitySet::default(),
             },
@@ -223,4 +225,3 @@ mod tests {
         assert_eq!(result.success_count(), 2);
     }
 }
-

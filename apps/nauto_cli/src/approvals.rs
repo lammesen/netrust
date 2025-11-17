@@ -83,7 +83,9 @@ struct ApprovalStore {
 impl ApprovalStore {
     fn load(path: &PathBuf) -> Result<Self> {
         if !path.exists() {
-            return Ok(Self { records: Vec::new() });
+            return Ok(Self {
+                records: Vec::new(),
+            });
         }
         let content = fs::read_to_string(path)?;
         let records = serde_json::from_str(&content)?;
@@ -124,7 +126,8 @@ impl ApprovalStore {
         for record in &mut self.records {
             if record.id == uuid {
                 record.status = ApprovalStatus::Approved;
-                record.note
+                record
+                    .note
                     .get_or_insert_with(|| format!("Approved by {}", approver));
                 return Ok(());
             }
@@ -132,4 +135,3 @@ impl ApprovalStore {
         anyhow::bail!("approval ID {} not found", id);
     }
 }
-

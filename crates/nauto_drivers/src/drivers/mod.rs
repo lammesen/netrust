@@ -11,4 +11,3 @@ pub use cisco_nxos_api::CiscoNxosApiDriver;
 pub use generic_ssh::GenericSshDriver;
 pub use juniper_junos::JuniperJunosDriver;
 pub use meraki_cloud::MerakiCloudDriver;
-

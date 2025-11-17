@@ -33,4 +33,3 @@ pub async fn run(cmd: NotifyCmd) -> Result<()> {
     }
     Ok(())
 }
-

@@ -24,16 +24,15 @@ pub fn record(path: PathBuf, job: &Job, result: &JobResult) -> Result<()> {
         job_id: job.id.to_string(),
         job_name: &job.name,
         success: result.success_count(),
-        failure: result.device_results.len().saturating_sub(result.success_count()),
+        failure: result
+            .device_results
+            .len()
+            .saturating_sub(result.success_count()),
         started_at: result.started_at.to_rfc3339(),
         finished_at: result.finished_at.to_rfc3339(),
     };
 
-    let mut file = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(path)?;
+    let mut file = OpenOptions::new().create(true).append(true).open(path)?;
     writeln!(file, "{}", serde_json::to_string(&record)?)?;
     Ok(())
 }
-

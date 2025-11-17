@@ -27,7 +27,11 @@ impl DeviceDriver for GenericSshDriver {
         }
     }
 
-    async fn execute(&self, device: &Device, action: DriverAction<'_>) -> Result<DriverExecutionResult> {
+    async fn execute(
+        &self,
+        device: &Device,
+        action: DriverAction<'_>,
+    ) -> Result<DriverExecutionResult> {
         let mut res = DriverExecutionResult::default();
         match action {
             DriverAction::Job(JobKind::CommandBatch { commands }) => {
@@ -60,4 +64,3 @@ impl DeviceDriver for GenericSshDriver {
         Ok(())
     }
 }
-

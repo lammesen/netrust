@@ -42,4 +42,3 @@ fn process_queue(path: &str) -> Result<()> {
     }
     Ok(())
 }
-

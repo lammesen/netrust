@@ -23,12 +23,12 @@ pub trait DeviceDriver: Send + Sync {
     fn device_type(&self) -> DeviceType;
     fn name(&self) -> &'static str;
     fn capabilities(&self) -> CapabilitySet;
-    async fn execute(&self, device: &Device, action: DriverAction<'_>) -> Result<DriverExecutionResult>;
-    async fn rollback(
+    async fn execute(
         &self,
         device: &Device,
-        snapshot: Option<String>,
-    ) -> Result<()>;
+        action: DriverAction<'_>,
+    ) -> Result<DriverExecutionResult>;
+    async fn rollback(&self, device: &Device, snapshot: Option<String>) -> Result<()>;
 }
 
 pub type DynDeviceDriver = Arc<dyn DeviceDriver>;
@@ -72,7 +72,9 @@ mod tests {
         let ios = registry.find(&nauto_model::DeviceType::CiscoIos).unwrap();
         assert_eq!(ios.name(), "Cisco IOS CLI");
 
-        let junos = registry.find(&nauto_model::DeviceType::JuniperJunos).unwrap();
+        let junos = registry
+            .find(&nauto_model::DeviceType::JuniperJunos)
+            .unwrap();
         assert!(junos.capabilities().supports_commit);
 
         let generic = registry.find(&nauto_model::DeviceType::GenericSsh).unwrap();
@@ -81,11 +83,14 @@ mod tests {
         let arista = registry.find(&nauto_model::DeviceType::AristaEos).unwrap();
         assert_eq!(arista.name(), "Arista EOS CLI");
 
-        let nxos = registry.find(&nauto_model::DeviceType::CiscoNxosApi).unwrap();
+        let nxos = registry
+            .find(&nauto_model::DeviceType::CiscoNxosApi)
+            .unwrap();
         assert!(nxos.capabilities().supports_diff);
 
-        let meraki = registry.find(&nauto_model::DeviceType::MerakiCloud).unwrap();
+        let meraki = registry
+            .find(&nauto_model::DeviceType::MerakiCloud)
+            .unwrap();
         assert!(meraki.capabilities().supports_rollback);
     }
 }
-

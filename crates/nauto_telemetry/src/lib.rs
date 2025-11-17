@@ -78,9 +78,7 @@ impl TelemetryCollector for HttpCollector {
     }
 }
 
-pub async fn collect_all(
-    collectors: &[Box<dyn TelemetryCollector>],
-) -> Vec<TelemetrySnapshot> {
+pub async fn collect_all(collectors: &[Box<dyn TelemetryCollector>]) -> Vec<TelemetrySnapshot> {
     let mut snapshots = Vec::new();
     for collector in collectors {
         match collector.collect().await {
@@ -90,4 +88,3 @@ pub async fn collect_all(
     }
     snapshots
 }
-

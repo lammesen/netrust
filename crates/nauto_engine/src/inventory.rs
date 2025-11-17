@@ -38,4 +38,3 @@ impl DeviceInventory for InMemoryInventory {
         Ok(matches)
     }
 }
-

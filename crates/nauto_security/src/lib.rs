@@ -40,10 +40,10 @@ impl CredentialStore for KeyringStore {
 
     async fn resolve(&self, reference: &CredentialRef) -> Result<Credential> {
         let entry = self.entry(reference)?;
-        let secret = task::spawn_blocking(move || entry.get_password().map_err(anyhow::Error::from))
-            .await??;
+        let secret =
+            task::spawn_blocking(move || entry.get_password().map_err(anyhow::Error::from))
+                .await??;
         let credential = serde_json::from_str(&secret)?;
         Ok(credential)
     }
 }
-

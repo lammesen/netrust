@@ -58,7 +58,8 @@ impl DeviceDriver for CiscoNxosApiDriver {
                         }
                     });
                     simulate_post(&self.client, device, payload.clone()).await;
-                    res.logs.push(format!("NX-OS API {} -> {}", device.name, cmd));
+                    res.logs
+                        .push(format!("NX-OS API {} -> {}", device.name, cmd));
                 }
             }
             DriverAction::Job(JobKind::ConfigPush { snippet }) => {
@@ -114,4 +115,3 @@ async fn simulate_post(client: &Client, device: &Device, payload: serde_json::Va
     );
     let _ = client; // placeholder for future actual request
 }
-

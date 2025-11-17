@@ -65,4 +65,3 @@ fn load_yaml<T: serde::de::DeserializeOwned>(path: &PathBuf) -> Result<T> {
     let content = fs::read_to_string(path)?;
     Ok(serde_yaml::from_str(&content)?)
 }
-

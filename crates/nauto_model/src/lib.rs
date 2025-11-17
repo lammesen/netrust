@@ -22,13 +22,18 @@ pub struct CredentialRef {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Credential {
-    UserPassword { username: String, password: String },
+    UserPassword {
+        username: String,
+        password: String,
+    },
     SshKey {
         username: String,
         key_path: String,
         passphrase: Option<String>,
     },
-    Token { token: String },
+    Token {
+        token: String,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -120,4 +125,3 @@ impl JobResult {
             .count()
     }
 }
-

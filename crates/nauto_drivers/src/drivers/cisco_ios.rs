@@ -27,7 +27,11 @@ impl DeviceDriver for CiscoIosDriver {
         }
     }
 
-    async fn execute(&self, device: &Device, action: DriverAction<'_>) -> Result<DriverExecutionResult> {
+    async fn execute(
+        &self,
+        device: &Device,
+        action: DriverAction<'_>,
+    ) -> Result<DriverExecutionResult> {
         let mut result = DriverExecutionResult::default();
         match action {
             DriverAction::Job(JobKind::CommandBatch { commands }) => {
@@ -40,7 +44,9 @@ impl DeviceDriver for CiscoIosDriver {
                 result.pre_snapshot = Some(format!("running-config snapshot for {}", device.name));
                 for line in snippet.lines() {
                     simulate_cli(device, line).await;
-                    result.logs.push(format!("[{} config] {}", device.name, line));
+                    result
+                        .logs
+                        .push(format!("[{} config] {}", device.name, line));
                 }
                 result.logs.push(format!("[{}] write memory", device.name));
                 result.post_snapshot = Some(format!("running-config after change {}", device.name));
@@ -77,4 +83,3 @@ async fn simulate_cli(device: &Device, cmd: &str) {
     );
     sleep(Duration::from_millis(50)).await;
 }
-
