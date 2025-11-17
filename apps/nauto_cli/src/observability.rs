@@ -75,13 +75,13 @@ struct ObservabilitySnapshot {
 
 #[derive(Serialize)]
 struct MetricValues {
-    jobs_total: i64,
-    jobs_failed_total: i64,
+    jobs_total: u64,
+    jobs_failed_total: u64,
     queue_depth: i64,
 }
 
 impl ObservabilitySnapshot {
-    fn new(scraped_at: u64, jobs_total: i64, jobs_failed_total: i64, queue_depth: i64) -> Self {
+    fn new(scraped_at: u64, jobs_total: u64, jobs_failed_total: u64, queue_depth: i64) -> Self {
         Self {
             scraped_at,
             metrics: MetricValues {
