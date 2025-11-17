@@ -29,5 +29,4 @@ prometheus = "0.13"
 sha2 = "0.10"
 base64 = "0.21"
 rpassword = "7"
-atty = "0.2"
 

@@ -23,7 +23,7 @@ use nauto_engine::{InMemoryInventory, JobEngine};
 use nauto_model::{Credential, CredentialRef, Device, Job, JobKind, TargetSelector};
 use nauto_security::{CredentialStore, KeyringStore};
 use serde::Deserialize;
-use std::io::{self, Read};
+use std::io::{self, IsTerminal, Read};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tracing::info;
@@ -58,7 +58,8 @@ enum Commands {
         username: String,
         #[arg(
             long,
-            help = "Provide the password directly (not recommended; use only in CI)"
+            help = "Provide the password directly (not recommended; use only in CI)",
+            conflicts_with_all = ["password_stdin", "password_prompt"]
         )]
         password: Option<String>,
         #[arg(
@@ -225,7 +226,7 @@ fn resolve_password(
         return prompt_for_password();
     }
 
-    if atty::is(atty::Stream::Stdin) {
+    if std::io::stdin().is_terminal() {
         return prompt_for_password();
     }
 
