@@ -1,0 +1,75 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 218 39% 8%;
+  --foreground: 210 17% 95%;
+  --card: 219 32% 12%;
+  --card-foreground: 210 17% 95%;
+  --popover: 219 32% 12%;
+  --popover-foreground: 210 17% 95%;
+  --primary: 196 100% 55%;
+  --primary-foreground: 216 71% 7%;
+  --secondary: 216 21% 18%;
+  --secondary-foreground: 210 40% 96%;
+  --muted: 215 19% 18%;
+  --muted-foreground: 215 20% 65%;
+  --accent: 200 100% 48%;
+  --accent-foreground: 218 39% 12%;
+  --destructive: 0 62% 52%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 215 27% 20%;
+  --input: 215 27% 20%;
+  --ring: 196 100% 55%;
+  --chart-1: 196 100% 55%;
+  --chart-2: 229 50% 60%;
+  --chart-3: 49 100% 69%;
+  --chart-4: 160 58% 42%;
+  --chart-5: 7 79% 53%;
+  --radius: 12px;
+}
+
+.light {
+  color-scheme: light;
+  --background: 210 20% 98%;
+  --foreground: 222 22% 10%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 22% 10%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 22% 10%;
+  --primary: 220 90% 56%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 220 28% 94%;
+  --secondary-foreground: 222 22% 10%;
+  --muted: 220 16% 92%;
+  --muted-foreground: 222 12% 38%;
+  --accent: 220 90% 56%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 72% 45%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 220 16% 88%;
+  --input: 220 16% 88%;
+  --ring: 220 90% 56%;
+  --chart-1: 220 90% 56%;
+  --chart-2: 260 70% 60%;
+  --chart-3: 35 92% 58%;
+  --chart-4: 150 64% 44%;
+  --chart-5: 10 80% 52%;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground min-h-screen font-sans antialiased;
+  }
+
+  pre {
+    @apply font-mono;
+  }
+}

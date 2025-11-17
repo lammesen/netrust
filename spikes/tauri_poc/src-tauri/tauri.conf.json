@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "identifier": "com.netrust.spike",
   "build": {
-    "beforeDevCommand": "",
+    "beforeDevCommand": "bash -lc 'cd public && (lsof -i :5173 && echo \"http server already on 5173\" || python3 -m http.server 5173)'",
     "beforeBuildCommand": "",
     "frontendDist": "../public",
     "devUrl": "http://localhost:5173"
@@ -19,4 +19,3 @@
     ]
   }
 }
-

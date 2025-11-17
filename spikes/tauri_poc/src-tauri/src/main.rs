@@ -160,7 +160,7 @@ fn main() {
             compliance_snapshot
         ])
         .setup(|app| {
-            if let Some(window) = app.get_window("main") {
+            if let Some(window) = app.get_webview_window("main") {
                 window.set_title("Network Automation GUI")?;
             }
             Ok(())

@@ -32,12 +32,12 @@ cargo test
 ```
 CI runs fmt/clippy/test/audit plus a Tauri smoke build via GitHub Actions.
 
-## GUI
+## GUI (Web UI)
 ```
-cd spikes/tauri_poc
-cargo tauri dev
+cd apps/web-ui
+npm run dev
 ```
+_Note: The previous Tauri spike lives at `spikes/tauri_poc`; we can re-wrap the new web UI with Tauri when needed._
 
 ## License
 MIT (planned) – update before public release.
-
