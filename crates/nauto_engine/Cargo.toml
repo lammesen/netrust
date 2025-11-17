@@ -13,4 +13,5 @@ nauto_model = { path = "../nauto_model" }
 thiserror = "1"
 tokio = { version = "1", features = ["full"] }
 tracing = "0.1"
+uuid = { version = "1", features = ["v4"] }
 

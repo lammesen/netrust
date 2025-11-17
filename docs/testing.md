@@ -4,9 +4,13 @@ Date: 2025-11-17
 
 ## Toolchain
 - `cargo check`
-- `cargo test`
+- `cargo test` (now executes on Linux, macOS, and Windows via matrix CI)
 
 Both completed successfully with no warnings or failures.
+
+### Notable Automated Tests Added
+- `apps/nauto_cli/tests/worker_queue.rs` exercises the worker queue processor end-to-end using the mock driver registry (verifies queue rewriting, results persistence, and approval deferrals).
+- `crates/nauto_telemetry/src/lib.rs::collect_all_filters_failures` ensures concurrent collector execution filters failing collectors without aborting the remaining snapshots.
 
 ## CLI Smoke Tests
 | Command | Args | Result |
@@ -25,6 +29,6 @@ No errors were observed; outputs inspected locally where applicable.
 - `inventory_netbox.yaml` – NetBox-derived inventory sample.
 
 ## Follow-ups
-- Proceed with CI workflow setup (fmt/clippy/test + Tauri build job).
+- Proceed with CI workflow setup (fmt/clippy/test + Tauri build job) – tracking matrix job health over the next week.
 - Continue plan steps per `net.plan.md`.
 

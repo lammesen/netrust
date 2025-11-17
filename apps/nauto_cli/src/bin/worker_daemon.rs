@@ -1,14 +1,9 @@
 use anyhow::Result;
-use serde::Deserialize;
-use std::{fs, thread, time::Duration};
-use tracing::info;
+use nauto_cli::worker::{process_once, WorkerOptions};
+use std::path::PathBuf;
+use std::{thread, time::Duration};
+use tracing::{error, info};
 use tracing_subscriber::EnvFilter;
-
-#[derive(Debug, Deserialize)]
-struct QueueItem {
-    job: String,
-    inventory: String,
-}
 
 fn main() -> Result<()> {
     tracing_subscriber::fmt()
@@ -16,29 +11,51 @@ fn main() -> Result<()> {
         .with_target(false)
         .init();
 
-    let queue_path = std::env::var("NAUTO_QUEUE").unwrap_or_else(|_| "queue/jobs.jsonl".into());
-    info!("Starting worker daemon (queue={})", queue_path);
+    let queue_path = env_path("NAUTO_QUEUE", "queue/jobs.jsonl");
+    let limit = env_usize("NAUTO_WORKER_LIMIT", 5);
+    let approvals = env_path("NAUTO_APPROVALS_PATH", "approvals/approvals.json");
+    let results = env_path("NAUTO_RESULTS_DIR", "queue/results");
+    let audit = env_path("NAUTO_WORKER_AUDIT_LOG", "logs/worker_audit.log");
+
+    let options = WorkerOptions {
+        queue: queue_path.clone(),
+        limit,
+        approvals,
+        results_dir: results,
+        audit_log: audit,
+    };
+
+    info!(
+        "Starting worker daemon (queue={}, limit={})",
+        queue_path.display(),
+        limit
+    );
 
     loop {
-        process_queue(&queue_path)?;
+        match process_once(&options) {
+            Ok(stats) => {
+                if stats.processed > 0 {
+                    info!(
+                        "Processed {} queue item(s); {} remaining ({} pending approval)",
+                        stats.processed, stats.remaining, stats.pending_approvals
+                    );
+                }
+            }
+            Err(err) => error!("Worker iteration failed: {err:?}"),
+        }
         thread::sleep(Duration::from_secs(5));
     }
 }
 
-fn process_queue(path: &str) -> Result<()> {
-    let body = fs::read_to_string(path).unwrap_or_default();
-    for (idx, line) in body.lines().enumerate() {
-        if line.trim().is_empty() {
-            continue;
-        }
-        let item: QueueItem = serde_json::from_str(line)?;
-        info!(
-            "Queue item #{} -> job={} inventory={}",
-            idx + 1,
-            item.job,
-            item.inventory
-        );
-        // Future: invoke JobEngine asynchronously.
-    }
-    Ok(())
+fn env_path(var: &str, default: &str) -> PathBuf {
+    std::env::var(var)
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| PathBuf::from(default))
+}
+
+fn env_usize(var: &str, default: usize) -> usize {
+    std::env::var(var)
+        .ok()
+        .and_then(|value| value.parse().ok())
+        .unwrap_or(default)
 }

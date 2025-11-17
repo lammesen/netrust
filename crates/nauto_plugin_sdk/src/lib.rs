@@ -10,15 +10,23 @@ bitflags! {
     }
 }
 
+pub const STANDARD_CAPABILITIES: CapabilityMask = CapabilityMask::from_bits_retain(
+    CapabilityMask::COMMIT.bits()
+        | CapabilityMask::ROLLBACK.bits()
+        | CapabilityMask::DIFF.bits()
+        | CapabilityMask::DRY_RUN.bits(),
+);
+
 impl CapabilityMask {
-    pub const fn all_standard() -> Self {
-        Self::COMMIT | Self::ROLLBACK | Self::DIFF | Self::DRY_RUN
+    pub fn all_standard() -> Self {
+        STANDARD_CAPABILITIES
     }
 }
 
 #[derive(Debug, Clone, Copy)]
 pub struct PluginMetadata {
     pub vendor: &'static str,
+    pub device_type: &'static str,
     pub capabilities: CapabilityMask,
 }
 
@@ -40,6 +48,16 @@ macro_rules! export_plugin {
         #[no_mangle]
         pub extern "C" fn plugin_capabilities() -> u32 {
             _PLUGIN_META.capabilities.bits()
+        }
+
+        #[no_mangle]
+        pub extern "C" fn plugin_device_type_ptr() -> *const u8 {
+            _PLUGIN_META.device_type.as_ptr()
+        }
+
+        #[no_mangle]
+        pub extern "C" fn plugin_device_type_len() -> usize {
+            _PLUGIN_META.device_type.len()
         }
     };
 }

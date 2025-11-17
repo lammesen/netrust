@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 
 #[cfg(feature = "real-ssh")]
 use async_ssh2_tokio::{AuthMethod, Client, ServerCheckMethod};

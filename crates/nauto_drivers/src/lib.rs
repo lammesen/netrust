@@ -1,4 +1,6 @@
+pub mod config;
 pub mod drivers;
+pub mod ssh;
 
 use anyhow::Result;
 use async_trait::async_trait;
@@ -91,6 +93,6 @@ mod tests {
         let meraki = registry
             .find(&nauto_model::DeviceType::MerakiCloud)
             .unwrap();
-        assert!(meraki.capabilities().supports_rollback);
+        assert!(!meraki.capabilities().supports_rollback);
     }
 }

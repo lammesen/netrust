@@ -32,6 +32,7 @@ pub async fn run(cmd: BenchCmd) -> Result<()> {
         parameters: Default::default(),
         max_parallel: None,
         dry_run: false,
+        approval_id: None,
     };
 
     let start = Instant::now();

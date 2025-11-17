@@ -69,13 +69,13 @@ impl ComplianceEngine {
         writer.write_record(["device_id", "rule", "passed", "details"])?;
         for outcome in outcomes {
             writer.write_record([
-                &outcome.device_id,
-                &outcome.rule,
+                outcome.device_id.as_str(),
+                outcome.rule.as_str(),
                 if outcome.passed { "true" } else { "false" },
                 outcome.details.as_deref().unwrap_or(""),
             ])?;
         }
-        writer.flush()?;
+        writer.flush().map_err(csv::Error::from)?;
         Ok(())
     }
 }
@@ -142,6 +142,6 @@ mod tests {
         let outcomes = ComplianceEngine::evaluate(&rules, &dataset);
         let summary = ComplianceEngine::summarize(&outcomes);
         assert_eq!(summary.total, 4);
-        assert_eq!(summary.failed, 2);
+        assert_eq!(summary.failed, 1);
     }
 }

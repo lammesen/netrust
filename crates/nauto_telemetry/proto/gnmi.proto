@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+package gnmi;
+
+message PathElem {
+  string name = 1;
+  map<string, string> key = 2;
+}
+
+message Path {
+  string origin = 1;
+  repeated PathElem elem = 2;
+  string target = 3;
+}
+
+enum DataType {
+  ALL = 0;
+  CONFIG = 1;
+  STATE = 2;
+  OPERATIONAL = 3;
+}
+
+enum Encoding {
+  JSON = 0;
+  JSON_IETF = 1;
+}
+
+message GetRequest {
+  Path prefix = 1;
+  repeated Path path = 2;
+  DataType type = 3;
+  Encoding encoding = 4;
+}
+
+message TypedValue {
+  oneof value {
+    string string_val = 1;
+    double float_val = 2;
+    int64 int_val = 3;
+    uint64 uint_val = 4;
+    bool bool_val = 5;
+    bytes json_val = 6;
+  }
+}
+
+message Update {
+  Path path = 1;
+  TypedValue val = 2;
+}
+
+message Notification {
+  Path prefix = 1;
+  repeated Update update = 2;
+}
+
+message GetResponse {
+  repeated Notification notification = 1;
+}
+
+service gNMI {
+  rpc Get(GetRequest) returns (GetResponse);
+}
+

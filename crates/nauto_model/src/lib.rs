@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::str::FromStr;
 use uuid::Uuid;
 
 pub type DeviceId = String;
@@ -13,6 +14,22 @@ pub enum DeviceType {
     AristaEos,
     CiscoNxosApi,
     MerakiCloud,
+}
+
+impl FromStr for DeviceType {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.trim().to_lowercase().as_str() {
+            "ciscoios" | "cisco_ios" => Ok(DeviceType::CiscoIos),
+            "juniperjunos" | "juniper_junos" => Ok(DeviceType::JuniperJunos),
+            "genericssh" | "generic_ssh" => Ok(DeviceType::GenericSsh),
+            "aristaeos" | "arista_eos" => Ok(DeviceType::AristaEos),
+            "cisconxosapi" | "cisco_nxos_api" | "nxos" => Ok(DeviceType::CiscoNxosApi),
+            "merakicloud" | "meraki_cloud" => Ok(DeviceType::MerakiCloud),
+            other => Err(format!("unknown device type '{}'", other)),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -64,6 +81,7 @@ pub struct Job {
     pub parameters: HashMap<String, serde_json::Value>,
     pub max_parallel: Option<usize>,
     pub dry_run: bool,
+    pub approval_id: Option<Uuid>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

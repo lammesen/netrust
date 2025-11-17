@@ -18,6 +18,7 @@ fn job_round_trip() {
         parameters,
         max_parallel: Some(25),
         dry_run: true,
+        approval_id: None,
     };
 
     let serialized = serde_json::to_string_pretty(&job).expect("serialize job");

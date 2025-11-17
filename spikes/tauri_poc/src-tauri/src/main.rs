@@ -1,6 +1,10 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use anyhow::{Context, Result};
+use nauto_cli::job_runner;
 use serde::{Deserialize, Serialize};
+use std::fs;
+use std::path::PathBuf;
 use std::sync::Mutex;
 use tauri::{Manager, State};
 use uuid::Uuid;
@@ -15,6 +19,10 @@ struct AppState {
 
 impl AppState {
     fn new() -> Self {
+        let inventory = load_inventory_snapshot().unwrap_or_else(|err| {
+            eprintln!("Failed to load inventory snapshot: {err:?}");
+            Vec::new()
+        });
         Self {
             runs: Mutex::new(Vec::new()),
             schedules: Mutex::new(vec![]),
@@ -30,32 +38,7 @@ impl AppState {
                     affected: vec!["core-r1".into(), "agg-eos-1".into()],
                 },
             ]),
-            inventory: vec![
-                InventoryDevice {
-                    id: "core-r1".into(),
-                    name: "Core-R1".into(),
-                    device_type: "CiscoIos".into(),
-                    tags: vec!["site:oslo".into(), "role:core".into()],
-                },
-                InventoryDevice {
-                    id: "agg-eos-1".into(),
-                    name: "Agg-EOS-1".into(),
-                    device_type: "AristaEos".into(),
-                    tags: vec!["site:oslo".into(), "role:aggregate".into()],
-                },
-                InventoryDevice {
-                    id: "spine-nxapi".into(),
-                    name: "Spine-NXAPI".into(),
-                    device_type: "CiscoNxosApi".into(),
-                    tags: vec!["site:oslo".into(), "role:spine".into()],
-                },
-                InventoryDevice {
-                    id: "meraki-net-1".into(),
-                    name: "Meraki-Net-1".into(),
-                    device_type: "MerakiCloud".into(),
-                    tags: vec!["site:remote".into(), "role:wireless".into()],
-                },
-            ],
+            inventory,
         }
     }
 }
@@ -122,20 +105,21 @@ fn list_inventory(state: State<AppState>) -> Vec<InventoryDevice> {
 }
 
 #[tauri::command]
-fn create_job(state: State<AppState>, request: JobWizardRequest) -> JobSummary {
-    let mut runs = state.runs.lock().expect("state poisoned");
-    let summary = JobSummary {
-        id: Uuid::new_v4(),
-        name: request.name,
-        job_type: request.job_type,
-        target: request.target,
-        dry_run: request.dry_run,
-        success: 42,
-        failed: 3,
-        unchanged: 5,
-    };
-    runs.push(summary.clone());
-    summary
+async fn create_job(
+    state: State<'_, AppState>,
+    request: JobWizardRequest,
+) -> Result<JobSummary, String> {
+    match execute_job_request(request).await {
+        Ok(summary) => {
+            state
+                .runs
+                .lock()
+                .expect("state poisoned")
+                .push(summary.clone());
+            Ok(summary)
+        }
+        Err(err) => Err(err.to_string()),
+    }
 }
 
 #[tauri::command]
@@ -183,4 +167,67 @@ fn main() {
         })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+fn load_inventory_snapshot() -> Result<Vec<InventoryDevice>> {
+    let path = repo_root().join("examples/inventory.yaml");
+    let inventory = job_runner::load_inventory(&path)?;
+    Ok(inventory
+        .devices
+        .into_iter()
+        .map(|device| InventoryDevice {
+            id: device.id,
+            name: device.name,
+            device_type: format!("{:?}", device.device_type),
+            tags: device.tags,
+        })
+        .collect())
+}
+
+async fn execute_job_request(request: JobWizardRequest) -> Result<JobSummary> {
+    let temp_dir = tempfile::tempdir().context("tempdir for job")?;
+    let job_file = temp_dir.path().join("wizard_job.yaml");
+    fs::write(&job_file, render_job_yaml(&request)).context("write wizard job")?;
+    let audit_log = temp_dir.path().join("audit.log");
+    let inventory = repo_root().join("examples/inventory.yaml");
+    std::env::set_var("NAUTO_USE_MOCK_DRIVERS", "1");
+    let (_job, result) =
+        job_runner::run_job(&job_file, &inventory, &audit_log, request.dry_run).await?;
+    let failures = result.device_results.len() - result.success_count();
+    Ok(JobSummary {
+        id: result.job_id,
+        name: request.name,
+        job_type: request.job_type,
+        target: request.target,
+        dry_run: request.dry_run,
+        success: result.success_count() as u32,
+        failed: failures as u32,
+        unchanged: 0,
+    })
+}
+
+fn render_job_yaml(request: &JobWizardRequest) -> String {
+    match request.job_type.to_lowercase().as_str() {
+        "config_push" => format!(
+            "name: {}\nkind:\n  type: config_push\n  snippet: |\n    {}\ntargets:\n  mode: all\ndry_run: {}\n",
+            request.name,
+            request.payload.replace('\n', "\n    "),
+            request.dry_run
+        ),
+        _ => format!(
+            "name: {}\nkind:\n  type: command_batch\n  commands:\n    - {}\ntargets:\n  mode: all\ndry_run: {}\n",
+            request.name,
+            request.payload,
+            request.dry_run
+        ),
+    }
+}
+
+fn repo_root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("..")
+        .join("..")
+        .canonicalize()
+        .expect("repo root")
 }

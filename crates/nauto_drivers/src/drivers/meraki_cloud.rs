@@ -1,4 +1,4 @@
-use crate::{DeviceDriver, DriverAction, DriverExecutionResult};
+use crate::{config, DeviceDriver, DriverAction, DriverExecutionResult};
 use anyhow::{bail, Context, Result};
 use async_trait::async_trait;
 use nauto_model::{CapabilitySet, Credential, Device, DeviceType, JobKind};
@@ -10,7 +10,6 @@ use tracing::{info, warn};
 
 const MERAKI_API_BASE: &str = "https://api.meraki.com/api/v1";
 const KEYRING_SERVICE: &str = "netrust";
-
 #[derive(Clone)]
 pub struct MerakiCloudDriver {
     client: Client,
@@ -20,7 +19,7 @@ pub struct MerakiCloudDriver {
 impl Default for MerakiCloudDriver {
     fn default() -> Self {
         let client = Client::builder()
-            .timeout(Duration::from_secs(15))
+            .timeout(config::http_timeout())
             .build()
             .expect("meraki reqwest client");
         Self {
@@ -43,7 +42,7 @@ impl DeviceDriver for MerakiCloudDriver {
     fn capabilities(&self) -> CapabilitySet {
         CapabilitySet {
             supports_commit: false,
-            supports_rollback: true,
+            supports_rollback: false,
             supports_diff: false,
             supports_dry_run: false,
         }
@@ -107,9 +106,9 @@ impl DeviceDriver for MerakiCloudDriver {
     }
 
     async fn rollback(&self, device: &Device, snapshot: Option<String>) -> Result<()> {
-        info!(
+        warn!(
             target: "drivers::meraki",
-            "Reverting template for {} snapshot {:?}",
+            "Rollback requested for {} but Meraki driver currently does not capture snapshots (requested {:?})",
             device.name,
             snapshot
         );
@@ -132,40 +131,66 @@ async fn submit_meraki_request(
         operation.as_str(),
         payload
     );
-    let response = client
-        .post(&url)
-        .header("X-Cisco-Meraki-API-Key", api_key)
-        .json(&payload)
-        .send()
-        .await
-        .with_context(|| format!("meraki request {} {}", device.name, operation.as_str()))?;
-    let status = response.status();
-    let text = response.text().await.with_context(|| {
-        format!(
-            "reading meraki response {} {}",
-            device.name,
-            operation.as_str()
-        )
-    })?;
+    let retry_limit = config::http_retry_limit();
+    for attempt in 0..=retry_limit {
+        match client
+            .post(&url)
+            .header("X-Cisco-Meraki-API-Key", api_key)
+            .json(&payload)
+            .send()
+            .await
+        {
+            Ok(response) => {
+                let status = response.status();
+                let text = response.text().await.with_context(|| {
+                    format!(
+                        "reading meraki response {} {}",
+                        device.name,
+                        operation.as_str()
+                    )
+                })?;
 
-    if !status.is_success() {
-        bail!(
-            "Meraki API returned {} for {} {}: {}",
-            status,
-            device.name,
-            operation.as_str(),
-            text
-        );
+                if !status.is_success() {
+                    bail!(
+                        "Meraki API returned {} for {} {}: {}",
+                        status,
+                        device.name,
+                        operation.as_str(),
+                        text
+                    );
+                }
+
+                info!(
+                    target: "drivers::meraki",
+                    "Meraki {} {} -> {}",
+                    device.name,
+                    operation.as_str(),
+                    status
+                );
+                return Ok(());
+            }
+            Err(err) => {
+                if attempt < retry_limit {
+                    warn!(
+                        target: "drivers::meraki",
+                        "retrying {} {} attempt {} due to {}",
+                        device.name,
+                        operation.as_str(),
+                        attempt + 1,
+                        err
+                    );
+                    tokio::time::sleep(Duration::from_millis(200 * (attempt as u64 + 1))).await;
+                    continue;
+                } else {
+                    return Err(err).with_context(|| {
+                        format!("meraki request {} {}", device.name, operation.as_str())
+                    });
+                }
+            }
+        }
     }
 
-    info!(
-        target: "drivers::meraki",
-        "Meraki {} {} -> {}",
-        device.name,
-        operation.as_str(),
-        status
-    );
-    Ok(())
+    unreachable!("meraki retry loop should return")
 }
 
 #[derive(Copy, Clone)]

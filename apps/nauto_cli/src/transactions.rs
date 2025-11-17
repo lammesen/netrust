@@ -1,6 +1,6 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Result};
 use clap::Args;
-use nauto_model::{Device, Job};
+use nauto_model::Device;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;

@@ -1,3 +1,4 @@
+use crate::job_runner;
 use anyhow::Result;
 use crossterm::{
     event::{self, Event, KeyCode},
@@ -13,20 +14,21 @@ use ratatui::{
     Terminal,
 };
 use std::io::stdout;
+use std::path::PathBuf;
 use std::time::Duration;
 
-pub async fn launch(devices: Vec<Device>) -> Result<()> {
-    tokio::task::spawn_blocking(move || run_ui(devices)).await??;
+pub async fn launch(inventory_path: PathBuf) -> Result<()> {
+    tokio::task::spawn_blocking(move || run_ui(inventory_path)).await??;
     Ok(())
 }
 
-fn run_ui(devices: Vec<Device>) -> Result<()> {
+fn run_ui(inventory_path: PathBuf) -> Result<()> {
     enable_raw_mode()?;
     let mut stdout = stdout();
     execute!(stdout, EnterAlternateScreen)?;
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
-    let mut app = AppState::new(devices);
+    let mut app = AppState::new(load_devices(&inventory_path)?, inventory_path);
 
     loop {
         terminal.draw(|f| draw(f, &mut app))?;
@@ -37,6 +39,7 @@ fn run_ui(devices: Vec<Device>) -> Result<()> {
                     KeyCode::Char('q') => break,
                     KeyCode::Down => app.next(),
                     KeyCode::Up => app.previous(),
+                    KeyCode::Char('r') => app.reload()?,
                     _ => {}
                 }
             }
@@ -56,10 +59,11 @@ fn cleanup_terminal(terminal: &mut Terminal<CrosstermBackend<std::io::Stdout>>) 
 struct AppState {
     devices: Vec<Device>,
     list_state: ListState,
+    inventory_path: PathBuf,
 }
 
 impl AppState {
-    fn new(devices: Vec<Device>) -> Self {
+    fn new(devices: Vec<Device>, inventory_path: PathBuf) -> Self {
         let mut list_state = ListState::default();
         if !devices.is_empty() {
             list_state.select(Some(0));
@@ -67,6 +71,7 @@ impl AppState {
         Self {
             devices,
             list_state,
+            inventory_path,
         }
     }
 
@@ -97,6 +102,21 @@ impl AppState {
         self.list_state
             .selected()
             .and_then(|idx| self.devices.get(idx))
+    }
+
+    fn reload(&mut self) -> Result<()> {
+        self.devices = load_devices(&self.inventory_path)?;
+        if self.devices.is_empty() {
+            self.list_state.select(None);
+        } else if self
+            .list_state
+            .selected()
+            .map(|idx| idx >= self.devices.len())
+            .unwrap_or(true)
+        {
+            self.list_state.select(Some(0));
+        }
+        Ok(())
     }
 }
 
@@ -133,4 +153,9 @@ fn draw(f: &mut ratatui::Frame, app: &mut AppState) {
     let detail_block =
         Paragraph::new(details).block(Block::default().title("Details").borders(Borders::ALL));
     f.render_widget(detail_block, layout[1]);
+}
+
+fn load_devices(path: &PathBuf) -> Result<Vec<Device>> {
+    let inventory = job_runner::load_inventory(path)?;
+    Ok(inventory.devices)
 }

@@ -15,4 +15,14 @@ members = [
     "crates/nauto_telemetry",
 ]
 resolver = "2"
+default-members = [
+    "apps/nauto_cli",
+    "crates/nauto_model",
+    "crates/nauto_drivers",
+    "crates/nauto_engine",
+    "crates/nauto_security",
+    "crates/nauto_compliance",
+    "crates/nauto_plugin_sdk",
+    "crates/nauto_telemetry"
+]
 

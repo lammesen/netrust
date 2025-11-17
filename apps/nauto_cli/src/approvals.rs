@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use clap::{Args, Subcommand};
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use uuid::Uuid;
 
 #[derive(Args)]
@@ -32,7 +32,7 @@ pub enum ApprovalsAction {
     List,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 struct ApprovalRecord {
     id: Uuid,
     job_path: String,
@@ -81,7 +81,7 @@ struct ApprovalStore {
 }
 
 impl ApprovalStore {
-    fn load(path: &PathBuf) -> Result<Self> {
+    fn load(path: &Path) -> Result<Self> {
         if !path.exists() {
             return Ok(Self {
                 records: Vec::new(),
@@ -92,7 +92,7 @@ impl ApprovalStore {
         Ok(Self { records })
     }
 
-    fn save(&self, path: &PathBuf) -> Result<()> {
+    fn save(&self, path: &Path) -> Result<()> {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)?;
         }
@@ -134,4 +134,17 @@ impl ApprovalStore {
         }
         anyhow::bail!("approval ID {} not found", id);
     }
+
+    fn is_approved(&self, id: &Uuid) -> bool {
+        self.records
+            .iter()
+            .find(|record| &record.id == id)
+            .map(|record| matches!(record.status, ApprovalStatus::Approved))
+            .unwrap_or(false)
+    }
+}
+
+pub fn is_approved(path: &Path, id: &Uuid) -> Result<bool> {
+    let store = ApprovalStore::load(path)?;
+    Ok(store.is_approved(id))
 }

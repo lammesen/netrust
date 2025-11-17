@@ -4,7 +4,7 @@ use nauto_compliance::{ComplianceEngine, DeviceConfigs};
 use nauto_model::ComplianceRule;
 use serde::Deserialize;
 use std::fs;
-use std::io::{self, Write};
+use std::io;
 use std::path::PathBuf;
 
 #[derive(Args)]

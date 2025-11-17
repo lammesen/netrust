@@ -4,6 +4,7 @@
 - Stored via `nauto_security::KeyringStore`, which wraps OS keychain providers.
 - CLI command `nauto_cli creds` writes credentials to vault; devices store only references.
 - Interactive usage now prompts for the password by default (`--password-prompt`), while automation can use `--password-stdin`; passing `--password` directly is allowed but prints a warning about argv exposure.
+- For headless servers (where platform keyrings are unavailable), set `NAUTO_KEYRING_FILE=/secure/path/credentials.json`. The keyring helper now mirrors secrets into that JSON file and transparently falls back to it when OS APIs fail (file contents are keyed by credential name and should reside on encrypted storage).
 
 ## Safeguards
 - Audit log writer (`logs/audit.log`) captures job summary per execution.
@@ -11,10 +12,9 @@
 - Read-only mode (CLI) achieved via `--dry-run` or command scopes; future GUI toggle planned.
 
 ## TLS / CA Handling
-- Workspace `.cargo/config.toml` points to the repo-local Mozilla CA bundle at `certs/cacert.pem` for reproducible builds.
+- Workspace `.cargo/config.toml` points to the repo-local Mozilla CA bundle at `certs/cacert.pem` (now committed to git) so cargo/rustls builds are repeatable in hermetic CI.
 - Run `scripts/update_cacert.sh` to refresh the bundle (wrapper around the curl.se Mozilla export). The script creates the directory if needed.
-- When `certs/cacert.pem` is missing, Cargo/reqwest fall back to the system trust store so developers can still build; the docs call out the discrepancy in CI.
-- Runtime HTTP clients (reqwest) rely on system trust store by default today, but will adopt the shared bundle once the TLS helper described in `docs/repo_review.md` is implemented.
+- Runtime HTTP clients (Meraki/NX-API/eAPI) continue to rely on the OS trust store, but now honor the same configurable timeout/retry settings (`NAUTO_HTTP_TIMEOUT_SECS`, `NAUTO_HTTP_RETRIES`).
 
 ## Rollback Strategy
 - Junos driver leverages commit-confirm semantics.

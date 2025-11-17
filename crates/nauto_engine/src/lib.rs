@@ -163,7 +163,7 @@ fn job_kind_label(kind: &nauto_model::JobKind) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use nauto_drivers::drivers::{CiscoIosDriver, GenericSshDriver, JuniperJunosDriver};
+    use nauto_drivers::drivers::MockDriver;
     use nauto_model::{CapabilitySet, CredentialRef, Device, DeviceType, Job, TargetSelector};
     use std::sync::Arc;
     use uuid::Uuid;
@@ -196,11 +196,15 @@ mod tests {
     }
 
     fn registry() -> DriverRegistry {
-        DriverRegistry::new(vec![
-            Arc::new(CiscoIosDriver::default()),
-            Arc::new(JuniperJunosDriver::default()),
-            Arc::new(GenericSshDriver::default()),
-        ])
+        let drivers: Vec<Arc<dyn DeviceDriver>> = [
+            DeviceType::CiscoIos,
+            DeviceType::JuniperJunos,
+            DeviceType::GenericSsh,
+        ]
+        .into_iter()
+        .map(|device_type| Arc::new(MockDriver::new(device_type)) as Arc<dyn DeviceDriver>)
+        .collect();
+        DriverRegistry::new(drivers)
     }
 
     #[tokio::test]
@@ -218,6 +222,7 @@ mod tests {
             parameters: Default::default(),
             max_parallel: None,
             dry_run: false,
+            approval_id: None,
         };
 
         let result = engine.execute(job).await.expect("job execution");

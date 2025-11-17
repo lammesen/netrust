@@ -1,34 +1,18 @@
-mod approvals;
-mod audit;
-mod bench;
-mod compliance;
-mod gitops;
-mod integrations;
-mod notifications;
-mod observability;
-mod scheduler;
-mod telemetry;
-mod transactions;
-mod tui;
-mod worker;
-
 use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand};
-use nauto_drivers::drivers::{
-    AristaEosDriver, CiscoIosDriver, CiscoNxosApiDriver, GenericSshDriver, JuniperJunosDriver,
-    MerakiCloudDriver,
+use nauto_cli::{
+    approvals, bench, compliance, gitops, integrations, job_runner, marketplace, notifications,
+    observability, plugins, scheduler, telemetry, transactions, tui, worker,
 };
-use nauto_drivers::DriverRegistry;
-use nauto_engine::{InMemoryInventory, JobEngine};
-use nauto_model::{Credential, CredentialRef, Device, Job, JobKind, TargetSelector};
+use nauto_model::{Credential, CredentialRef, TaskStatus};
 use nauto_security::{CredentialStore, KeyringStore};
-use serde::Deserialize;
-use std::io::{self, IsTerminal, Read};
+use std::io::{self, IsTerminal, Read, Write};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use tracing::info;
+use std::thread;
+use std::time::Duration;
 use tracing_subscriber::EnvFilter;
-use uuid::Uuid;
 
 #[derive(Parser)]
 #[command(name = "nauto", about = "Network automation CLI (MVP)")]
@@ -49,6 +33,8 @@ enum Commands {
         audit_log: PathBuf,
         #[arg(long, default_value_t = false)]
         dry_run: bool,
+        #[arg(long, default_value_t = false, help = "Disable CLI progress indicator")]
+        no_progress: bool,
     },
     /// Store credentials securely using the OS keychain
     Creds {
@@ -107,28 +93,10 @@ enum Commands {
     Telemetry(telemetry::TelemetryCmd),
 }
 
-#[derive(Debug, Deserialize)]
-struct InventoryFile {
-    devices: Vec<Device>,
-}
-
-#[derive(Debug, Deserialize)]
-struct JobFile {
-    name: String,
-    #[serde(default = "Uuid::new_v4")]
-    id: Uuid,
-    kind: JobKind,
-    #[serde(default)]
-    targets: Option<TargetSelector>,
-    #[serde(default)]
-    dry_run: bool,
-    #[serde(default)]
-    max_parallel: Option<usize>,
-}
-
 #[tokio::main]
 async fn main() -> Result<()> {
     init_tracing();
+    let _plugin_host = plugins::load_installed(Path::new("marketplace/plugins"));
     let cli = Cli::parse();
 
     match cli.command {
@@ -137,7 +105,34 @@ async fn main() -> Result<()> {
             inventory,
             audit_log,
             dry_run,
-        } => run_job(job, inventory, audit_log, dry_run).await?,
+            no_progress,
+        } => {
+            let mut progress = if no_progress {
+                None
+            } else {
+                Some(ProgressBar::start("Executing job"))
+            };
+            let (_job, result) = job_runner::run_job(&job, &inventory, &audit_log, dry_run).await?;
+            if let Some(mut spinner) = progress.take() {
+                spinner.stop();
+                println!();
+            }
+            println!(
+                "Job complete: success={} failed={}",
+                result.success_count(),
+                result.device_results.len() - result.success_count()
+            );
+            let failed: Vec<_> = result
+                .device_results
+                .iter()
+                .filter(|task| task.status == TaskStatus::Failed)
+                .map(|task| task.device_id.clone())
+                .collect();
+            if !failed.is_empty() {
+                println!("Failed devices: {}", failed.join(", "));
+            }
+            println!("Audit log: {}", audit_log.display());
+        }
         Commands::Creds {
             name,
             username,
@@ -172,31 +167,6 @@ fn init_tracing() {
         .with_env_filter(EnvFilter::from_default_env())
         .with_target(false)
         .init();
-}
-
-async fn run_job(
-    job_path: PathBuf,
-    inventory_path: PathBuf,
-    audit_path: PathBuf,
-    dry_run: bool,
-) -> Result<()> {
-    let job_file = load_job(&job_path)?;
-    let mut job: Job = job_file.into();
-    if dry_run {
-        job.dry_run = true;
-    }
-    let inventory = load_inventory(&inventory_path)?;
-    let registry = driver_registry();
-    let engine = JobEngine::new(InMemoryInventory::new(inventory.devices.clone()), registry);
-    info!("Starting job {} ({})", job.name, job.id);
-    let result = engine.execute(job.clone()).await?;
-    println!(
-        "Job complete: success={} failed={}",
-        result.success_count(),
-        result.device_results.len() - result.success_count()
-    );
-    audit::record(audit_path, &job, &result)?;
-    Ok(())
 }
 
 async fn store_credentials(name: String, username: String, password: String) -> Result<()> {
@@ -259,43 +229,48 @@ fn read_password_from_stdin() -> Result<String> {
 }
 
 async fn run_tui(inventory_path: PathBuf) -> Result<()> {
-    let inventory = load_inventory(&inventory_path)?;
-    tui::launch(inventory.devices).await
+    tui::launch(inventory_path).await
 }
 
-fn load_inventory(path: &Path) -> Result<InventoryFile> {
-    let data = std::fs::read_to_string(path)?;
-    let inventory = serde_yaml::from_str(&data)?;
-    Ok(inventory)
+struct ProgressBar {
+    stop: Arc<AtomicBool>,
+    handle: Option<thread::JoinHandle<()>>,
 }
 
-fn load_job(path: &Path) -> Result<JobFile> {
-    let data = std::fs::read_to_string(path)?;
-    let job = serde_yaml::from_str(&data)?;
-    Ok(job)
-}
+impl ProgressBar {
+    fn start(message: &str) -> Self {
+        let stop = Arc::new(AtomicBool::new(false));
+        let label = message.to_string();
+        let thread_stop = stop.clone();
+        let handle = thread::spawn(move || {
+            let frames = ["|", "/", "-", "\\"];
+            let mut idx = 0usize;
+            while !thread_stop.load(Ordering::SeqCst) {
+                print!("\r{} {}", label, frames[idx % frames.len()]);
+                let _ = std::io::stdout().flush();
+                idx = (idx + 1) % frames.len();
+                thread::sleep(Duration::from_millis(200));
+            }
+            print!("\r{:width$}\r", "", width = label.len() + 2);
+            let _ = std::io::stdout().flush();
+        });
 
-impl From<JobFile> for Job {
-    fn from(file: JobFile) -> Job {
-        Job {
-            id: file.id,
-            name: file.name,
-            kind: file.kind,
-            targets: file.targets.unwrap_or(TargetSelector::All),
-            parameters: Default::default(),
-            max_parallel: file.max_parallel,
-            dry_run: file.dry_run,
+        Self {
+            stop,
+            handle: Some(handle),
+        }
+    }
+
+    fn stop(&mut self) {
+        self.stop.store(true, Ordering::SeqCst);
+        if let Some(handle) = self.handle.take() {
+            let _ = handle.join();
         }
     }
 }
 
-fn driver_registry() -> DriverRegistry {
-    DriverRegistry::new(vec![
-        Arc::new(CiscoIosDriver::default()),
-        Arc::new(JuniperJunosDriver::default()),
-        Arc::new(GenericSshDriver::default()),
-        Arc::new(AristaEosDriver::default()),
-        Arc::new(CiscoNxosApiDriver::default()),
-        Arc::new(MerakiCloudDriver::default()),
-    ])
+impl Drop for ProgressBar {
+    fn drop(&mut self) {
+        self.stop();
+    }
 }
