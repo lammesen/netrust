@@ -83,7 +83,14 @@ impl ComplianceEngine {
 fn evaluate_expression(expression: &str, config: &str) -> (bool, Option<String>) {
     if let Some(rest) = expression.strip_prefix("not:") {
         let found = config.contains(rest);
-        (!found, if found { Some(format!("found forbidden pattern {}", rest)) } else { None })
+        (
+            !found,
+            if found {
+                Some(format!("found forbidden pattern {}", rest))
+            } else {
+                None
+            },
+        )
     } else if let Some(rest) = expression.strip_prefix("contains:") {
         let found = config.contains(rest);
         (
@@ -126,7 +133,10 @@ mod tests {
             },
         ];
         let mut dataset = DeviceConfigs::new();
-        dataset.insert("r1".into(), "ntp server 1.1.1.1\nline vty 0 4\n transport input ssh".into());
+        dataset.insert(
+            "r1".into(),
+            "ntp server 1.1.1.1\nline vty 0 4\n transport input ssh".into(),
+        );
         dataset.insert("r2".into(), "interface Gi1/0\n description test".into());
 
         let outcomes = ComplianceEngine::evaluate(&rules, &dataset);
@@ -135,4 +145,3 @@ mod tests {
         assert_eq!(summary.failed, 2);
     }
 }
-

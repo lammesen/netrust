@@ -1,6 +1,8 @@
 use anyhow::Result;
-use async_ssh2_tokio::{AuthMethod, Client, ServerCheckMethod};
 use clap::Parser;
+
+#[cfg(feature = "real-ssh")]
+use async_ssh2_tokio::{AuthMethod, Client, ServerCheckMethod};
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -24,7 +26,11 @@ struct Args {
 #[tokio::main]
 async fn main() -> Result<()> {
     let args = Args::parse();
+    run(args).await
+}
 
+#[cfg(feature = "real-ssh")]
+async fn run(args: Args) -> Result<()> {
     let client = Client::connect(
         (args.host.as_str(), 22),
         &args.username,
@@ -43,3 +49,15 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
+#[cfg(not(feature = "real-ssh"))]
+async fn run(args: Args) -> Result<()> {
+    println!(
+        "[stub] SSH demo skipped for {} (enable --features real-ssh to talk to devices)",
+        args.host
+    );
+    println!(
+        "[stub] would have executed '{}' as {}",
+        args.command, args.username
+    );
+    Ok(())
+}

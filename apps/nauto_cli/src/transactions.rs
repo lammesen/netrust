@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use clap::Args;
 use nauto_model::{Device, Job};
 use serde::{Deserialize, Serialize};
@@ -32,6 +32,7 @@ struct InventoryFile {
 }
 
 pub fn run(cmd: TransactionsCmd) -> Result<()> {
+    cmd.ensure_valid()?;
     let job: JobDefinition = load_yaml(&cmd.job)?;
     let inventory: InventoryFile = load_yaml(&cmd.inventory)?;
     let mut device_ids: Vec<String> = inventory.devices.iter().map(|d| d.id.clone()).collect();
@@ -49,9 +50,7 @@ pub fn run(cmd: TransactionsCmd) -> Result<()> {
 
     let mut batches = Vec::new();
     while !rest.is_empty() {
-        let chunk: Vec<String> = rest
-            .drain(..rest.len().min(cmd.batch_size))
-            .collect();
+        let chunk: Vec<String> = rest.drain(..rest.len().min(cmd.batch_size)).collect();
         batches.push(chunk);
     }
 
@@ -76,3 +75,49 @@ fn load_yaml<T: serde::de::DeserializeOwned>(path: &PathBuf) -> Result<T> {
     Ok(serde_yaml::from_str(&content)?)
 }
 
+impl TransactionsCmd {
+    fn ensure_valid(&self) -> Result<()> {
+        if self.canary_size == 0 {
+            bail!("canary-size must be greater than zero");
+        }
+        if self.batch_size == 0 {
+            bail!("batch-size must be greater than zero");
+        }
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn sample_cmd() -> TransactionsCmd {
+        TransactionsCmd {
+            job: PathBuf::from("job.yaml"),
+            inventory: PathBuf::from("inventory.yaml"),
+            output: PathBuf::from("output.yaml"),
+            canary_size: 5,
+            batch_size: 10,
+        }
+    }
+
+    #[test]
+    fn rejects_zero_canary_size() {
+        let mut cmd = sample_cmd();
+        cmd.canary_size = 0;
+        assert!(cmd.ensure_valid().is_err());
+    }
+
+    #[test]
+    fn rejects_zero_batch_size() {
+        let mut cmd = sample_cmd();
+        cmd.batch_size = 0;
+        assert!(cmd.ensure_valid().is_err());
+    }
+
+    #[test]
+    fn accepts_positive_values() {
+        let cmd = sample_cmd();
+        assert!(cmd.ensure_valid().is_ok());
+    }
+}

@@ -67,4 +67,3 @@ mod telemetry_writers {
         }
     }
 }
-

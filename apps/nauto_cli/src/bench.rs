@@ -3,9 +3,7 @@ use clap::Args;
 use nauto_drivers::drivers::GenericSshDriver;
 use nauto_drivers::DriverRegistry;
 use nauto_engine::{InMemoryInventory, JobEngine};
-use nauto_model::{
-    CapabilitySet, CredentialRef, Device, DeviceType, Job, JobKind, TargetSelector,
-};
+use nauto_model::{CapabilitySet, CredentialRef, Device, DeviceType, Job, JobKind, TargetSelector};
 use std::sync::Arc;
 use std::time::Instant;
 use uuid::Uuid;
@@ -67,4 +65,3 @@ fn build_devices(count: usize) -> Vec<Device> {
         })
         .collect()
 }
-

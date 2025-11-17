@@ -47,9 +47,7 @@ fn run_ui(devices: Vec<Device>) -> Result<()> {
     Ok(())
 }
 
-fn cleanup_terminal(
-    terminal: &mut Terminal<CrosstermBackend<std::io::Stdout>>,
-) -> Result<()> {
+fn cleanup_terminal(terminal: &mut Terminal<CrosstermBackend<std::io::Stdout>>) -> Result<()> {
     disable_raw_mode()?;
     execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
     Ok(())
@@ -66,7 +64,10 @@ impl AppState {
         if !devices.is_empty() {
             list_state.select(Some(0));
         }
-        Self { devices, list_state }
+        Self {
+            devices,
+            list_state,
+        }
     }
 
     fn next(&mut self) {
@@ -129,8 +130,7 @@ fn draw(f: &mut ratatui::Frame, app: &mut AppState) {
         "No device selected".into()
     };
 
-    let detail_block = Paragraph::new(details)
-        .block(Block::default().title("Details").borders(Borders::ALL));
+    let detail_block =
+        Paragraph::new(details).block(Block::default().title("Details").borders(Borders::ALL));
     f.render_widget(detail_block, layout[1]);
 }
-

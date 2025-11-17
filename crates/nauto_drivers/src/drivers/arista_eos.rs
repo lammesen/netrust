@@ -50,7 +50,10 @@ impl DeviceDriver for AristaEosDriver {
                     run_cli(device, line).await;
                     res.logs.push(format!("{} => {}", device.name, line));
                 }
-                res.logs.push(format!("[{}] copy running-config startup-config", device.name));
+                res.logs.push(format!(
+                    "[{}] copy running-config startup-config",
+                    device.name
+                ));
                 res.post_snapshot = Some(format!("post-change config {}", device.name));
                 res.diff = Some(format!(
                     "EOS diff placeholder ({} lines)",
@@ -89,4 +92,3 @@ async fn run_cli(device: &Device, command: &str) {
     );
     sleep(Duration::from_millis(45)).await;
 }
-

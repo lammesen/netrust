@@ -6,8 +6,8 @@ edition = "2021"
 [dependencies]
 anyhow = "1"
 async-trait = "0.1"
-async-ssh2-tokio = "0.11"
 nauto_model = { path = "../nauto_model" }
+nauto_security = { path = "../nauto_security" }
 tokio = { version = "1", features = ["full"] }
 tracing = "0.1"
 reqwest = { version = "0.11", default-features = false, features = ["json", "rustls-tls"] }

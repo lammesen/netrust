@@ -115,4 +115,3 @@ fn detect_device_type(model: &str) -> DeviceType {
 struct InventoryFile {
     devices: Vec<Device>,
 }
-

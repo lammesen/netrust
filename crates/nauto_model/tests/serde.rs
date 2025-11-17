@@ -51,4 +51,3 @@ fn device_capabilities_default() {
     assert!(loaded.capabilities.supports_commit);
     assert!(loaded.capabilities.supports_diff);
 }
-

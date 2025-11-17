@@ -1,9 +1,17 @@
 use anyhow::{Context, Result};
+
+#[cfg(feature = "real-ssh")]
 use async_ssh2_tokio::{AuthMethod, Client, ServerCheckMethod};
+#[cfg(feature = "real-ssh")]
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    run().await
+}
+
+#[cfg(feature = "real-ssh")]
+async fn run() -> Result<()> {
     let host = std::env::var("NETCONF_HOST").context("set NETCONF_HOST")?;
     let username = std::env::var("NETCONF_USER").context("set NETCONF_USER")?;
     let password = std::env::var("NETCONF_PASSWORD").context("set NETCONF_PASSWORD")?;
@@ -18,10 +26,7 @@ async fn main() -> Result<()> {
     .context("ssh negotiation failed")?;
 
     // Request a NETCONF subsystem channel (RFC 6242).
-    let channel = client
-        .get_channel()
-        .await
-        .context("open channel failed")?;
+    let channel = client.get_channel().await.context("open channel failed")?;
     channel
         .request_subsystem(true, "netconf")
         .await
@@ -56,3 +61,9 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
+#[cfg(not(feature = "real-ssh"))]
+async fn run() -> Result<()> {
+    println!("[stub] NETCONF demo requires --features real-ssh.");
+    println!("Set NETCONF_HOST/USER/PASSWORD env variables and re-run with the feature to talk to a controller.");
+    Ok(())
+}

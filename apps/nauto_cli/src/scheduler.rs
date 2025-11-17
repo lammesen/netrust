@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
-use clap::Args;
 use chrono::{DateTime, Utc};
+use clap::Args;
 use cron::Schedule;
 use serde::Deserialize;
 use std::fs;
@@ -29,8 +29,8 @@ struct ScheduleEntry {
 
 pub fn run(cmd: ScheduleCmd) -> Result<()> {
     let content = fs::read_to_string(&cmd.file)?;
-    let definition: ScheduleFile = serde_yaml::from_str(&content)
-        .context("failed to parse schedule definition YAML")?;
+    let definition: ScheduleFile =
+        serde_yaml::from_str(&content).context("failed to parse schedule definition YAML")?;
     let now = Utc::now();
     for entry in &definition.schedules {
         let schedule = Schedule::from_str(&entry.cron)
@@ -47,4 +47,3 @@ fn print_upcoming(schedule: Schedule, start: DateTime<Utc>, iterations: usize) {
         println!("  -> {}", ts);
     }
 }
-

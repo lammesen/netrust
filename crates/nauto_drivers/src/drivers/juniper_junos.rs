@@ -27,9 +27,15 @@ impl DeviceDriver for JuniperJunosDriver {
         }
     }
 
-    async fn execute(&self, device: &Device, action: DriverAction<'_>) -> Result<DriverExecutionResult> {
+    async fn execute(
+        &self,
+        device: &Device,
+        action: DriverAction<'_>,
+    ) -> Result<DriverExecutionResult> {
         match action {
-            DriverAction::Job(JobKind::ConfigPush { snippet }) => self.apply_config(device, snippet).await,
+            DriverAction::Job(JobKind::ConfigPush { snippet }) => {
+                self.apply_config(device, snippet).await
+            }
             DriverAction::Job(JobKind::CommandBatch { commands }) => {
                 let mut res = DriverExecutionResult::default();
                 for cmd in commands {
@@ -88,11 +94,13 @@ impl JuniperJunosDriver {
 
         info!(target: "drivers::juniper", "commit check {}", device.name);
         sleep(Duration::from_millis(40)).await;
-        res.logs.push(format!("[{}] commit check passed", device.name));
+        res.logs
+            .push(format!("[{}] commit check passed", device.name));
 
         info!(target: "drivers::juniper", "commit confirmed {}", device.name);
         sleep(Duration::from_millis(40)).await;
-        res.logs.push(format!("[{}] commit confirmed 2m", device.name));
+        res.logs
+            .push(format!("[{}] commit confirmed 2m", device.name));
 
         res.post_snapshot = Some(format!("candidate after commit {}", device.name));
         res.diff = Some(format!("Junos diff output ({} chars)", snippet.len()));
@@ -100,4 +108,3 @@ impl JuniperJunosDriver {
         Ok(res)
     }
 }
-

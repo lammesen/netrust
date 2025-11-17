@@ -4,4 +4,3 @@ export_plugin!(PluginMetadata {
     vendor: "VendorX Experimental",
     capabilities: CapabilityMask::COMMIT | CapabilityMask::ROLLBACK | CapabilityMask::DIFF
 });
-

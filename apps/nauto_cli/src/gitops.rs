@@ -64,14 +64,7 @@ fn commit_configs(repo: &Repository, message: &str) -> Result<()> {
         .collect();
 
     let parent_refs: Vec<&git2::Commit> = parents.iter().collect();
-    repo.commit(
-        Some("HEAD"),
-        &sig,
-        &sig,
-        message,
-        &tree,
-        &parent_refs,
-    )?;
+    repo.commit(Some("HEAD"), &sig, &sig, message, &tree, &parent_refs)?;
     Ok(())
 }
 
@@ -88,4 +81,3 @@ fn load_yaml<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T> {
     let content = fs::read_to_string(path)?;
     Ok(serde_yaml::from_str(&content)?)
 }
-
