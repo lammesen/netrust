@@ -2,10 +2,14 @@ mod inventory;
 
 pub use inventory::{DeviceInventory, InMemoryInventory};
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use futures::stream::{FuturesUnordered, StreamExt};
+use nauto_compliance::{ComplianceEngine, DeviceConfigs};
 use nauto_drivers::{DeviceDriver, DriverAction, DriverExecutionResult, DriverRegistry};
-use nauto_model::{Job, JobResult, TaskStatus, TaskSummary};
+use nauto_model::{ComplianceRule, Device, Job, JobResult, TaskStatus, TaskSummary};
+use serde_json::Value;
+use std::collections::HashMap;
+use std::fs;
 use std::sync::Arc;
 use thiserror::Error;
 use tokio::sync::Semaphore;
@@ -40,6 +44,9 @@ impl<I: DeviceInventory> JobEngine<I> {
     #[instrument(skip(self))]
     pub async fn execute(&self, job: Job) -> Result<JobResult> {
         let devices = self.inventory.resolve_targets(&job.targets).await?;
+        if let nauto_model::JobKind::ComplianceCheck { rules } = &job.kind {
+            return execute_compliance_job(job.id, devices, rules.clone(), &job.parameters);
+        }
         let started_at = chrono::Utc::now();
         let semaphore = Arc::new(Semaphore::new(
             job.max_parallel.unwrap_or(self.default_parallel),
@@ -74,6 +81,106 @@ impl<I: DeviceInventory> JobEngine<I> {
             device_results,
         })
     }
+}
+
+fn execute_compliance_job(
+    job_id: uuid::Uuid,
+    devices: Vec<Device>,
+    rules: Vec<ComplianceRule>,
+    parameters: &HashMap<String, Value>,
+) -> Result<JobResult> {
+    let started_at = chrono::Utc::now();
+    let inputs = load_compliance_inputs(parameters)?;
+
+    let mut device_results = Vec::new();
+    for device in devices {
+        let start = chrono::Utc::now();
+        if let Some(config) = inputs.get(&device.id) {
+            let (passed, logs) = evaluate_device_compliance(&device.id, &rules, config);
+            device_results.push(TaskSummary {
+                device_id: device.id,
+                status: if passed {
+                    TaskStatus::Success
+                } else {
+                    TaskStatus::Failed
+                },
+                started_at: Some(start),
+                finished_at: Some(chrono::Utc::now()),
+                logs,
+                diff: None,
+            });
+        } else {
+            device_results.push(TaskSummary {
+                device_id: device.id,
+                status: TaskStatus::Failed,
+                started_at: Some(start),
+                finished_at: Some(chrono::Utc::now()),
+                logs: vec!["no config provided for compliance evaluation".into()],
+                diff: None,
+            });
+        }
+    }
+
+    Ok(JobResult {
+        job_id,
+        started_at,
+        finished_at: chrono::Utc::now(),
+        device_results,
+    })
+}
+
+fn load_compliance_inputs(parameters: &HashMap<String, Value>) -> Result<DeviceConfigs> {
+    if let Some(path) = parameters
+        .get("inputs_path")
+        .and_then(|v| v.as_str())
+        .filter(|s| !s.is_empty())
+    {
+        let body = fs::read_to_string(path)
+            .with_context(|| format!("reading compliance inputs from {}", path))?;
+        let parsed: DeviceConfigs =
+            serde_yaml::from_str(&body).context("parsing compliance inputs YAML")?;
+        return Ok(parsed);
+    }
+
+    if let Some(inline) = parameters.get("inputs").and_then(|v| v.as_object()) {
+        let mut parsed = DeviceConfigs::new();
+        for (device_id, value) in inline {
+            if let Some(config) = value.as_str() {
+                parsed.insert(device_id.clone(), config.to_string());
+            }
+        }
+        if !parsed.is_empty() {
+            return Ok(parsed);
+        }
+    }
+
+    Err(anyhow::anyhow!(
+        "compliance job requires 'inputs_path' (YAML map of device_id->config) or inline 'inputs'"
+    ))
+}
+
+fn evaluate_device_compliance(
+    device_id: &str,
+    rules: &[ComplianceRule],
+    config: &str,
+) -> (bool, Vec<String>) {
+    let mut dataset = DeviceConfigs::new();
+    dataset.insert(device_id.to_string(), config.to_string());
+    let outcomes = ComplianceEngine::evaluate(rules, &dataset);
+    let mut logs = Vec::new();
+    let mut all_passed = true;
+    for outcome in outcomes {
+        if outcome.passed {
+            logs.push(format!("{}: pass", outcome.rule));
+        } else {
+            all_passed = false;
+            let detail = outcome
+                .details
+                .unwrap_or_else(|| "missing required pattern".into());
+            logs.push(format!("{}: fail ({})", outcome.rule, detail));
+        }
+    }
+    (all_passed, logs)
 }
 
 async fn run_device(

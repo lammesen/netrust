@@ -1,14 +1,21 @@
 use anyhow::Result;
 use clap::{Args, ValueEnum};
+use nauto_model::JobResult;
 use prometheus::{opts, Encoder, IntCounter, IntGauge, Registry, TextEncoder};
 use serde::Serialize;
 use serde_json::to_string_pretty;
+use std::fs;
+use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Args)]
 pub struct ObservabilityCmd {
     #[arg(long, default_value_t = MetricsFormat::Text, value_enum)]
     pub format: MetricsFormat,
+    #[arg(long, default_value = "queue/jobs.jsonl")]
+    pub queue: PathBuf,
+    #[arg(long, default_value = "queue/results")]
+    pub results_dir: PathBuf,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, ValueEnum)]
@@ -18,6 +25,9 @@ pub enum MetricsFormat {
 }
 
 pub fn run(cmd: ObservabilityCmd) -> Result<()> {
+    let queue_depth = count_queue_items(&cmd.queue)?;
+    let (jobs_total_val, jobs_failed_val) = summarize_results(&cmd.results_dir)?;
+
     let registry = Registry::new();
     let jobs_counter = IntCounter::with_opts(opts!("jobs_total", "Jobs executed")).unwrap();
     let failures_counter =
@@ -28,9 +38,9 @@ pub fn run(cmd: ObservabilityCmd) -> Result<()> {
     registry.register(Box::new(failures_counter.clone()))?;
     registry.register(Box::new(queue_gauge.clone()))?;
 
-    jobs_counter.inc_by(128);
-    failures_counter.inc_by(3);
-    queue_gauge.set(12);
+    jobs_counter.inc_by(jobs_total_val);
+    failures_counter.inc_by(jobs_failed_val);
+    queue_gauge.set(queue_depth as i64);
 
     let snapshot = ObservabilitySnapshot::new(
         unix_timestamp(),
@@ -65,6 +75,40 @@ fn emit_prometheus(registry: &Registry, scraped_at: u64) -> Result<()> {
 fn emit_json(snapshot: &ObservabilitySnapshot) -> Result<()> {
     println!("{}", to_string_pretty(snapshot)?);
     Ok(())
+}
+
+fn count_queue_items(queue: &PathBuf) -> Result<usize> {
+    Ok(fs::read_to_string(queue)
+        .unwrap_or_default()
+        .lines()
+        .filter(|line| !line.trim().is_empty())
+        .count())
+}
+
+fn summarize_results(results_dir: &PathBuf) -> Result<(u64, u64)> {
+    if !results_dir.exists() {
+        return Ok((0, 0));
+    }
+    let mut total = 0u64;
+    let mut failed = 0u64;
+    for entry in fs::read_dir(results_dir)? {
+        let path = entry?.path();
+        if path.extension().and_then(|ext| ext.to_str()) != Some("json") {
+            continue;
+        }
+        let body = fs::read_to_string(&path)?;
+        let result: JobResult = serde_json::from_str(&body)?;
+        total += 1;
+        if result
+            .device_results
+            .len()
+            .saturating_sub(result.success_count())
+            > 0
+        {
+            failed += 1;
+        }
+    }
+    Ok((total, failed))
 }
 
 #[derive(Serialize)]

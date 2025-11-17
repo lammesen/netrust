@@ -31,8 +31,19 @@ enum Commands {
         inventory: PathBuf,
         #[arg(long, default_value = "logs/audit.log")]
         audit_log: PathBuf,
+        #[arg(
+            long,
+            default_value = "approvals/approvals.json",
+            help = "Approvals store to validate approval_id in the job file"
+        )]
+        approvals: PathBuf,
         #[arg(long, default_value_t = false)]
         dry_run: bool,
+        #[arg(
+            long,
+            help = "Optional transaction plan YAML to run canary + batches sequentially"
+        )]
+        plan: Option<PathBuf>,
         #[arg(long, default_value_t = false, help = "Disable CLI progress indicator")]
         no_progress: bool,
     },
@@ -104,7 +115,9 @@ async fn main() -> Result<()> {
             job,
             inventory,
             audit_log,
+            approvals,
             dry_run,
+            plan,
             no_progress,
         } => {
             let mut progress = if no_progress {
@@ -112,24 +125,62 @@ async fn main() -> Result<()> {
             } else {
                 Some(ProgressBar::start("Executing job"))
             };
-            let (_job, result) = job_runner::run_job(&job, &inventory, &audit_log, dry_run).await?;
-            if let Some(mut spinner) = progress.take() {
-                spinner.stop();
-                println!();
+            let job_file = job_runner::load_job(&job)?;
+            if let Some(approval_id) = job_file.approval_id {
+                if !approvals::is_approved(&approvals, &approval_id)? {
+                    anyhow::bail!(
+                        "job {} requires approval {}; not approved in {}",
+                        job_file.name,
+                        approval_id,
+                        approvals.display()
+                    );
+                }
             }
-            println!(
-                "Job complete: success={} failed={}",
-                result.success_count(),
-                result.device_results.len() - result.success_count()
-            );
-            let failed: Vec<_> = result
-                .device_results
-                .iter()
-                .filter(|task| task.status == TaskStatus::Failed)
-                .map(|task| task.device_id.clone())
-                .collect();
-            if !failed.is_empty() {
-                println!("Failed devices: {}", failed.join(", "));
+            let inventory_file = job_runner::load_inventory(&inventory)?;
+
+            if let Some(plan_path) = plan {
+                let results = job_runner::run_plan(
+                    &plan_path,
+                    job_file.into(),
+                    inventory_file,
+                    &audit_log,
+                    dry_run,
+                )
+                .await?;
+                if let Some(mut spinner) = progress.take() {
+                    spinner.stop();
+                    println!();
+                }
+                for (idx, result) in results.iter().enumerate() {
+                    println!(
+                        "Stage {} complete: success={} failed={}",
+                        idx + 1,
+                        result.success_count(),
+                        result.device_results.len() - result.success_count()
+                    );
+                }
+            } else {
+                let (_job, result) =
+                    job_runner::execute_job(job_file.into(), inventory_file, &audit_log, dry_run)
+                        .await?;
+                if let Some(mut spinner) = progress.take() {
+                    spinner.stop();
+                    println!();
+                }
+                println!(
+                    "Job complete: success={} failed={}",
+                    result.success_count(),
+                    result.device_results.len() - result.success_count()
+                );
+                let failed: Vec<_> = result
+                    .device_results
+                    .iter()
+                    .filter(|task| task.status == TaskStatus::Failed)
+                    .map(|task| task.device_id.clone())
+                    .collect();
+                if !failed.is_empty() {
+                    println!("Failed devices: {}", failed.join(", "));
+                }
             }
             println!("Audit log: {}", audit_log.display());
         }

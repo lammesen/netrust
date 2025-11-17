@@ -9,6 +9,7 @@ use nauto_drivers::{DeviceDriver, DriverRegistry};
 use nauto_engine::{InMemoryInventory, JobEngine};
 use nauto_model::{CapabilitySet, Device, DeviceType, Job, JobKind, JobResult, TargetSelector};
 use serde::Deserialize;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::sync::Arc;
 use tracing::{info, warn};
@@ -30,6 +31,8 @@ pub struct JobFile {
     #[serde(default)]
     pub dry_run: bool,
     #[serde(default)]
+    pub parameters: HashMap<String, serde_json::Value>,
+    #[serde(default)]
     pub max_parallel: Option<usize>,
     #[serde(default)]
     pub approval_id: Option<Uuid>,
@@ -42,7 +45,7 @@ impl From<JobFile> for Job {
             name: file.name,
             kind: file.kind,
             targets: file.targets.unwrap_or(TargetSelector::All),
-            parameters: Default::default(),
+            parameters: file.parameters,
             max_parallel: file.max_parallel,
             dry_run: file.dry_run,
             approval_id: file.approval_id,
@@ -56,12 +59,20 @@ pub async fn run_job(
     audit_path: &Path,
     dry_run: bool,
 ) -> Result<(Job, JobResult)> {
-    let job_file = load_job(job_path)?;
-    let mut job: Job = job_file.into();
+    let job = load_job(job_path)?;
+    let inventory = load_inventory(inventory_path)?;
+    execute_job(job.into(), inventory, audit_path, dry_run).await
+}
+
+pub async fn execute_job(
+    mut job: Job,
+    inventory: InventoryFile,
+    audit_path: &Path,
+    dry_run: bool,
+) -> Result<(Job, JobResult)> {
     if dry_run {
         job.dry_run = true;
     }
-    let inventory = load_inventory(inventory_path)?;
     let registry = driver_registry();
     let engine = JobEngine::new(InMemoryInventory::new(inventory.devices.clone()), registry);
     let result = engine.execute(job.clone()).await?;
@@ -79,6 +90,66 @@ pub fn load_job(path: &Path) -> Result<JobFile> {
     let data = std::fs::read_to_string(path)?;
     let job = serde_yaml::from_str(&data)?;
     Ok(job)
+}
+
+#[derive(Debug, Deserialize)]
+struct TransactionPlan {
+    pub job_name: String,
+    pub canary: Vec<String>,
+    pub batches: Vec<Vec<String>>,
+}
+
+pub async fn run_plan(
+    plan_path: &Path,
+    base_job: Job,
+    inventory: InventoryFile,
+    audit_path: &Path,
+    dry_run: bool,
+) -> Result<Vec<JobResult>> {
+    let body = std::fs::read_to_string(plan_path)?;
+    let plan: TransactionPlan = serde_yaml::from_str(&body)?;
+    if plan.job_name != base_job.name {
+        eprintln!(
+            "warning: plan targets job '{}' but file is '{}'",
+            plan.job_name, base_job.name
+        );
+    }
+
+    let mut results = Vec::new();
+    let mut stages: Vec<Vec<String>> = Vec::new();
+    if !plan.canary.is_empty() {
+        stages.push(plan.canary);
+    }
+    stages.extend(plan.batches);
+
+    for (idx, ids) in stages.into_iter().enumerate() {
+        if ids.is_empty() {
+            continue;
+        }
+        let filtered = filter_inventory(&inventory, &ids);
+        if filtered.devices.is_empty() {
+            eprintln!(
+                "Stage {} skipped (no matching devices in inventory)",
+                idx + 1
+            );
+            continue;
+        }
+        let (_job, result) = execute_job(base_job.clone(), filtered, audit_path, dry_run).await?;
+        results.push(result);
+    }
+
+    Ok(results)
+}
+
+fn filter_inventory(base: &InventoryFile, device_ids: &[String]) -> InventoryFile {
+    let set: HashSet<_> = device_ids.iter().collect();
+    let devices = base
+        .devices
+        .iter()
+        .filter(|device| set.contains(&device.id))
+        .cloned()
+        .collect();
+    InventoryFile { devices }
 }
 
 pub fn driver_registry() -> DriverRegistry {
