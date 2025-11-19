@@ -1,9 +1,11 @@
 mod inventory;
+pub mod store;
+pub mod queue;
 
 pub use inventory::{DeviceInventory, InMemoryInventory};
+use crate::store::{JobStore, NoOpJobStore};
 
 use anyhow::{Context, Result};
-use futures::stream::{FuturesUnordered, StreamExt};
 use nauto_compliance::{ComplianceEngine, DeviceConfigs};
 use nauto_drivers::{DeviceDriver, DriverAction, DriverExecutionResult, DriverRegistry};
 use nauto_model::{ComplianceRule, Device, Job, JobResult, TaskStatus, TaskSummary};
@@ -25,6 +27,7 @@ pub struct JobEngine<I: DeviceInventory> {
     inventory: I,
     drivers: DriverRegistry,
     default_parallel: usize,
+    store: Arc<dyn JobStore>,
 }
 
 impl<I: DeviceInventory> JobEngine<I> {
@@ -33,6 +36,7 @@ impl<I: DeviceInventory> JobEngine<I> {
             inventory,
             drivers,
             default_parallel: 32,
+            store: Arc::new(NoOpJobStore),
         }
     }
 
@@ -41,92 +45,180 @@ impl<I: DeviceInventory> JobEngine<I> {
         self
     }
 
+    pub fn with_store<S: JobStore + 'static>(mut self, store: S) -> Self {
+        self.store = Arc::new(store);
+        self
+    }
+
     #[instrument(skip(self))]
     pub async fn execute(&self, job: Job) -> Result<JobResult> {
+        self.store.create_job(&job).await?;
+
         let devices = self.inventory.resolve_targets(&job.targets).await?;
         if let nauto_model::JobKind::ComplianceCheck { rules } = &job.kind {
-            return execute_compliance_job(job.id, devices, rules.clone(), &job.parameters);
+            return execute_compliance_job(
+                job.id,
+                devices,
+                rules.clone(),
+                &job.parameters,
+                self.store.clone(),
+            )
+            .await;
         }
         let started_at = chrono::Utc::now();
         let semaphore = Arc::new(Semaphore::new(
             job.max_parallel.unwrap_or(self.default_parallel),
         ));
-        let mut tasks = FuturesUnordered::new();
+        let mut join_set = tokio::task::JoinSet::new();
 
         for device in devices {
             let sem = semaphore.clone();
             let driver = self.drivers.find(&device.device_type);
             let job_kind = job.kind.clone();
             let dry_run = job.dry_run;
+            let device_id = device.id.clone();
 
-            tasks.push(tokio::spawn(async move {
-                let permit = sem.acquire_owned().await.expect("semaphore closed");
-                run_device(device, driver, job_kind, dry_run, permit).await
-            }));
+            join_set.spawn(async move {
+                let permit = match sem.acquire_owned().await {
+                    Ok(p) => p,
+                    Err(_) => {
+                        return TaskSummary {
+                            device_id,
+                            status: TaskStatus::Failed,
+                            started_at: Some(chrono::Utc::now()),
+                            finished_at: Some(chrono::Utc::now()),
+                            logs: vec!["Semaphore closed".into()],
+                            diff: None,
+                        }
+                    }
+                };
+
+                let device_id = device.id.clone();
+                match tokio::time::timeout(
+                    std::time::Duration::from_secs(300),
+                    run_device(device, driver, job_kind, dry_run, permit),
+                )
+                .await
+                {
+                    Ok(summary) => summary,
+                    Err(_) => TaskSummary {
+                        device_id,
+                        status: TaskStatus::Failed,
+                        started_at: Some(chrono::Utc::now()),
+                        finished_at: Some(chrono::Utc::now()),
+                        logs: vec!["Job execution timed out".into()],
+                        diff: None,
+                    },
+                }
+            });
         }
 
         let mut device_results = Vec::new();
-        while let Some(res) = tasks.next().await {
+        while let Some(res) = join_set.join_next().await {
             match res {
-                Ok(summary) => device_results.push(summary),
+                Ok(summary) => {
+                    if let Err(e) = self.store.update_task_summary(job.id, &summary).await {
+                        error!("failed to persist task summary: {e}");
+                    }
+                    device_results.push(summary);
+                }
                 Err(err) => error!("task join error: {err}"),
             }
         }
 
         let finished_at = chrono::Utc::now();
-        Ok(JobResult {
+        let result = JobResult {
             job_id: job.id,
             started_at,
             finished_at,
             device_results,
-        })
+        };
+
+        self.store.complete_job(job.id, &result).await?;
+
+        Ok(result)
     }
 }
 
-fn execute_compliance_job(
+async fn execute_compliance_job(
     job_id: uuid::Uuid,
     devices: Vec<Device>,
     rules: Vec<ComplianceRule>,
     parameters: &HashMap<String, Value>,
+    store: Arc<dyn JobStore>,
 ) -> Result<JobResult> {
     let started_at = chrono::Utc::now();
-    let inputs = load_compliance_inputs(parameters)?;
+    let inputs = Arc::new(load_compliance_inputs(parameters)?);
+    let rules = Arc::new(rules);
+
+    let mut join_set = tokio::task::JoinSet::new();
+
+    for device in devices {
+        let inputs = inputs.clone();
+        let rules = rules.clone();
+
+        join_set.spawn(async move {
+            let start = chrono::Utc::now();
+            if let Some(config) = inputs.get(&device.id) {
+                let rules = rules.clone();
+                let config = config.clone();
+                let device_id = device.id.clone();
+
+                let (passed, logs) = tokio::task::spawn_blocking(move || {
+                    evaluate_device_compliance(&device_id, &rules, &config)
+                })
+                .await
+                .unwrap_or((false, vec!["internal error: evaluation panicked".into()]));
+
+                TaskSummary {
+                    device_id: device.id,
+                    status: if passed {
+                        TaskStatus::Success
+                    } else {
+                        TaskStatus::Failed
+                    },
+                    started_at: Some(start),
+                    finished_at: Some(chrono::Utc::now()),
+                    logs,
+                    diff: None,
+                }
+            } else {
+                TaskSummary {
+                    device_id: device.id,
+                    status: TaskStatus::Failed,
+                    started_at: Some(start),
+                    finished_at: Some(chrono::Utc::now()),
+                    logs: vec!["no config provided for compliance evaluation".into()],
+                    diff: None,
+                }
+            }
+        });
+    }
 
     let mut device_results = Vec::new();
-    for device in devices {
-        let start = chrono::Utc::now();
-        if let Some(config) = inputs.get(&device.id) {
-            let (passed, logs) = evaluate_device_compliance(&device.id, &rules, config);
-            device_results.push(TaskSummary {
-                device_id: device.id,
-                status: if passed {
-                    TaskStatus::Success
-                } else {
-                    TaskStatus::Failed
-                },
-                started_at: Some(start),
-                finished_at: Some(chrono::Utc::now()),
-                logs,
-                diff: None,
-            });
-        } else {
-            device_results.push(TaskSummary {
-                device_id: device.id,
-                status: TaskStatus::Failed,
-                started_at: Some(start),
-                finished_at: Some(chrono::Utc::now()),
-                logs: vec!["no config provided for compliance evaluation".into()],
-                diff: None,
-            });
+    while let Some(res) = join_set.join_next().await {
+        match res {
+            Ok(summary) => {
+                if let Err(e) = store.update_task_summary(job_id, &summary).await {
+                    error!("failed to persist compliance summary: {e}");
+                }
+                device_results.push(summary);
+            }
+            Err(err) => error!("compliance task error: {err}"),
         }
     }
 
-    Ok(JobResult {
+    let finished_at = chrono::Utc::now();
+    let result = JobResult {
         job_id,
         started_at,
-        finished_at: chrono::Utc::now(),
+        finished_at,
         device_results,
-    })
+    };
+
+    store.complete_job(job_id, &result).await?;
+
+    Ok(result)
 }
 
 fn load_compliance_inputs(parameters: &HashMap<String, Value>) -> Result<DeviceConfigs> {
@@ -135,6 +227,12 @@ fn load_compliance_inputs(parameters: &HashMap<String, Value>) -> Result<DeviceC
         .and_then(|v| v.as_str())
         .filter(|s| !s.is_empty())
     {
+        if std::path::Path::new(path)
+            .components()
+            .any(|c| matches!(c, std::path::Component::ParentDir))
+        {
+            anyhow::bail!("path traversal not allowed in inputs_path");
+        }
         let body = fs::read_to_string(path)
             .with_context(|| format!("reading compliance inputs from {}", path))?;
         let parsed: DeviceConfigs =

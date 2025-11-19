@@ -1,12 +1,14 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::fmt;
 use std::str::FromStr;
 use uuid::Uuid;
 
 pub type DeviceId = String;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "snake_case")]
 pub enum DeviceType {
     CiscoIos,
     JuniperJunos,
@@ -37,7 +39,7 @@ pub struct CredentialRef {
     pub name: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub enum Credential {
     UserPassword {
         username: String,
@@ -53,6 +55,29 @@ pub enum Credential {
     },
 }
 
+impl fmt::Debug for Credential {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Credential::UserPassword { username, .. } => f
+                .debug_struct("UserPassword")
+                .field("username", username)
+                .field("password", &"******")
+                .finish(),
+            Credential::SshKey {
+                username,
+                key_path,
+                ..
+            } => f
+                .debug_struct("SshKey")
+                .field("username", username)
+                .field("key_path", key_path)
+                .field("passphrase", &"******")
+                .finish(),
+            Credential::Token { .. } => f.debug_struct("Token").field("token", &"******").finish(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Device {
     pub id: DeviceId,
@@ -65,6 +90,7 @@ pub struct Device {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(default)]
 pub struct CapabilitySet {
     pub supports_commit: bool,
     pub supports_rollback: bool,
@@ -84,12 +110,31 @@ pub struct Job {
     pub approval_id: Option<Uuid>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum JobKind {
     CommandBatch { commands: Vec<String> },
     ConfigPush { snippet: String },
     ComplianceCheck { rules: Vec<ComplianceRule> },
+}
+
+impl fmt::Debug for JobKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            JobKind::CommandBatch { commands } => f
+                .debug_struct("CommandBatch")
+                .field("commands", commands)
+                .finish(),
+            JobKind::ConfigPush { snippet: _ } => f
+                .debug_struct("ConfigPush")
+                .field("snippet", &"***redacted***")
+                .finish(),
+            JobKind::ComplianceCheck { rules } => f
+                .debug_struct("ComplianceCheck")
+                .field("rules", rules)
+                .finish(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

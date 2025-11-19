@@ -1,4 +1,5 @@
 use anyhow::{Context, Result};
+use ed25519_dalek::{Verifier, VerifyingKey, Signature};
 use nauto_plugin_sdk::CapabilityMask;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -110,9 +111,18 @@ fn try_load(dir: &Path) -> Result<Vec<LoadedPlugin>> {
 }
 
 fn load_single(engine: &Engine, path: &Path) -> Result<LoadedPlugin> {
-    let module = Module::from_file(engine, path)?;
+    let wasm_bytes = fs::read(path)?;
+    verify_signature(path, &wasm_bytes)?;
+
+    let module = Module::new(engine, &wasm_bytes)?;
+    // Restrict WASM capabilities (no WASI imports provided, so effectively restricted)
+    // To explicitly deny, we just don't link WASI.
+    // If the plugin requires WASI, instantiation will fail, which is what we want for now unless we whitelist.
+    
     let mut store = Store::new(engine, ());
     let linker = Linker::new(engine);
+    // linker.func(...) can be used to provide host functions if needed.
+    
     let instance = linker.instantiate(&mut store, &module)?;
 
     let memory = instance
@@ -153,6 +163,30 @@ fn load_single(engine: &Engine, path: &Path) -> Result<LoadedPlugin> {
         capabilities: CapabilityMask::from_bits_truncate(caps_bits),
         path: path.to_path_buf(),
     })
+}
+
+fn verify_signature(path: &Path, wasm_bytes: &[u8]) -> Result<()> {
+    let pub_key_hex = std::env::var("NAUTO_PLUGIN_PUBLIC_KEY")
+        .context("NAUTO_PLUGIN_PUBLIC_KEY not set, cannot verify plugins")?;
+    
+    let pub_key_bytes = hex::decode(&pub_key_hex)
+        .context("invalid public key hex")?;
+        
+    let verifying_key = VerifyingKey::from_bytes(pub_key_bytes.as_slice().try_into()?)
+        .map_err(|_| anyhow::anyhow!("invalid public key length"))?;
+
+    let sig_path = path.with_extension("wasm.sig");
+    if !sig_path.exists() {
+        anyhow::bail!("missing signature file {:?}", sig_path);
+    }
+    let sig_bytes = fs::read(&sig_path)?;
+    let signature = Signature::from_bytes(sig_bytes.as_slice().try_into().context("invalid signature length")?);
+
+    verifying_key.verify(wasm_bytes, &signature)
+        .context("signature verification failed")?;
+    
+    info!("Verified signature for {:?}", path);
+    Ok(())
 }
 
 fn read_utf8(
