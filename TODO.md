@@ -28,5 +28,11 @@ This document lists the outstanding high-priority (P0) tasks for the `netrust` p
 - [ ] Add security tests (keyring round-trip, signature verification).
 
 ### CI
-- [ ] Enforce clippy warnings as errors (`-- -D warnings` in CI).
-- [ ] Add e2e test job to CI (run CLI against test inventory, validate output).
+### CI/CD
+- [ ] **Linting:** Enforce clippy warnings as errors (`-- -D warnings` in CI).
+- [ ] **Testing:** Add an end-to-end test job to the CI pipeline (e.g., run CLI against a test inventory and validate the output).
+- [ ] **Release:** Automate release process (e.g., create GitHub releases, publish crates).
+
+### Documentation
+- [ ] Add comprehensive documentation for all public APIs.
+- [ ] Create a user guide for the CLI.
