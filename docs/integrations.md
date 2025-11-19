@@ -23,4 +23,3 @@ nauto_cli integrations servicenow-change \
 ## Workflow
 - Use NetBox import to seed the local inventory before running jobs.
 - Record change ticket ID with ServiceNow command prior to job execution, then reference ticket in job labels.
-

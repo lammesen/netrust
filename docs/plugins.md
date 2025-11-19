@@ -23,4 +23,3 @@
 - If WASM timeline slips, consider native dynamic loading with ABI-stable wrapper, but default to WASM for security.
 
 Document owner: extensions@netrust.local
-

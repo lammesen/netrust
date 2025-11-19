@@ -22,4 +22,3 @@ Outputs devices processed, elapsed time, and throughput (devices/sec). Adjust de
 - Run `nauto_cli bench` nightly with at least 10k synthetic devices; track throughput and failure counts over time.
 - Profile memory/CPU while bench command executes to detect regressions.
 - Expand collectors to hit mock SNMP/gNMI servers to ensure telemetry pipeline scales with bench load.
-

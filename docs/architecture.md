@@ -63,4 +63,3 @@ JobEngine <-> DeviceInventory (in-memory / future DB)
 ## Next Steps
 - Convert this summary into onboarding wiki page.
 - Keep document updated when new crates (GUI, plugin SDK) land.
-

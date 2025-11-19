@@ -30,4 +30,3 @@ nauto_cli compliance --rules ... --inputs ... --format csv > report.csv
 - Support richer rule language (regex, numeric comparisons).
 - Integrate with job engine outputs to fetch configs automatically.
 - Surface results in GUI dashboard.
-

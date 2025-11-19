@@ -31,4 +31,3 @@ No errors were observed; outputs inspected locally where applicable.
 ## Follow-ups
 - Proceed with CI workflow setup (fmt/clippy/test + Tauri build job) – tracking matrix job health over the next week.
 - Continue plan steps per `net.plan.md`.
-

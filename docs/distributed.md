@@ -16,4 +16,3 @@ nauto_cli worker --queue queue/jobs.jsonl --limit 10 --dry-run
 - Connect worker command to an actual async executor + job engine.
 - Introduce message broker (Redis/SQS) once service mode is available.
 - Report progress/telemetry back to control plane for dashboards.
-

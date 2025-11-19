@@ -29,4 +29,3 @@ Date: 2025-11-17
 - WASM approach feasible for safe runtime plugins; need SDK ergonomics.
 
 Document owner: platform@netrust.local
-

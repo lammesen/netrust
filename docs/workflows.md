@@ -31,4 +31,3 @@ nauto_cli approvals approve --id <uuid> --approver bob
 ## Future Enhancements
 - Enforce approval requirement flag on jobs before execution.
 - Integrate with external ticketing (ServiceNow) via approvals command.
-

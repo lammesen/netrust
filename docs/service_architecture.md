@@ -1,5 +1,9 @@
 # Scheduler / Worker Architecture (Service Mode)
 
+> [!NOTE]
+> This architecture is currently **PLANNED** and not yet fully implemented. The current implementation runs as a standalone CLI tool. See [TODO.md](../TODO.md) for implementation status.
+
+
 ## Components
 - **API Gateway**: exposes REST/gRPC endpoints for job submission, approvals, telemetry queries.
 - **Scheduler**:
@@ -33,4 +37,3 @@
 - Extract scheduler/worker code into shared crate to avoid CLI duplication.
 - Define protobuf/JSON schema for queue items and worker responses.
 - Implement idempotent retry strategy (backoff, dead-letter queue).
-

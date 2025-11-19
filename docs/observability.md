@@ -27,4 +27,3 @@ nauto_cli telemetry --config examples/telemetry.yaml --format json
 - Run the command as a daemon (or integrate into service) exposing metrics endpoint.
 - Wire tracing spans to OpenTelemetry exporters, shipping to Jaeger/Tempo.
 - Enrich metrics with real job data once service mode is enabled.
-

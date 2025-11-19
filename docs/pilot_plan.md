@@ -25,4 +25,3 @@
 - Capture issues/requests in tracker labeled `pilot`.
 - Weekly sync to review progress.
 - Post-mortem document summarizing wins, gaps, and next milestones.
-

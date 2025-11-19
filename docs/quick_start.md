@@ -4,6 +4,7 @@
 - Rust toolchain (stable).
 - Node.js + Tauri dependencies (if running GUI).
 - Access to NetBox export (optional) and target inventory credentials stored via `nauto_cli creds`.
+- **Important**: All commands below assume you are running from the project root directory.
 
 ## 2. Store Credentials
 ```bash
@@ -59,4 +60,3 @@ NAUTO_QUEUE=queue/jobs.jsonl cargo run -p nauto_cli --bin worker_daemon
 nauto_cli marketplace list
 nauto_cli marketplace install --name "VendorX Experimental"
 ```
-

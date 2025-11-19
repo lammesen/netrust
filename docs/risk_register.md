@@ -14,4 +14,3 @@
 - **Plugin Sandbox**: Run fuzzing on host interface + WASM boundaries.
 
 Last updated: 2025-11-17
-

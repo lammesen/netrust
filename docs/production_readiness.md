@@ -31,3 +31,12 @@
 ## CI/CD & QA
 - Add CI matrix for fmt/clippy/test + driver/unit mocks + Tauri build; include nightly scale tests (bench/telemetry) with thresholds.
 - Create staging environment with synthetic devices; run canary pipelines before production releases.
+
+## Critical Gaps (from Codebase Review)
+- **Drivers are Simulations**: No actual network communication occurs.
+- **No Per-Device Timeouts**: Hung devices can block execution indefinitely.
+- **No Task Cancellation**: Cannot stop running jobs gracefully.
+- **Unbounded Memory**: Results accumulate in memory, risking OOM at scale.
+- **Missing Tests**: Extremely low test coverage (no integration/failure path tests).
+
+See [TODO.md](../TODO.md) for the plan to address these gaps.

@@ -27,4 +27,3 @@ repo/
 - Pull desired state from Git and feed directly into job engine.
 - Support templates per vendor.
 - Wire automated PR creation for compliance drifts.
-

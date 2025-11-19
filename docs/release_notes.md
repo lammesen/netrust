@@ -27,4 +27,3 @@
 - Tag repo `v0.1.0` after final regression pass.
 - Publish binaries (CLI + GUI) and attach to GitHub release.
 - Continue plan: regression log, CI setup, service-mode design/prototype, security hardening, quick-start docs, pilot rollout.
-

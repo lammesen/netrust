@@ -15,4 +15,3 @@ nauto_cli schedule --file examples/schedules.yaml --iterations 3
 - Connect scheduler output to job engine (spawn background runner).
 - Surface status + failure notifications in GUI + CLI.
 - Allow enabling/disabling schedules and editing from UI.
-

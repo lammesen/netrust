@@ -27,3 +27,15 @@
 - Back UI screens with real backend APIs once service mode is available.
 - Provide packaged binaries for macOS/Windows/Linux once GUI stabilizes.
 
+## Frontend Plan (Web UI)
+The Web UI is being built with React + Vite + TypeScript + Tailwind.
+- **Stack**: shadcn/ui, Headless UI, TanStack Query, React Hook Form + Zod.
+- **Status**: Scaffolded, themed, layout shell complete.
+- **Planned Features**:
+    - Inventory Table (TanStack Table).
+    - Job Wizard (Form + Validation).
+    - Scheduling (Cron helper).
+    - Compliance Dashboard.
+    - Real-time feedback (Toasts, Optimistic updates).
+
+See [TODO.md](../TODO.md) for the full frontend roadmap.

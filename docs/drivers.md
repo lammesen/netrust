@@ -1,5 +1,9 @@
 # Vendor Driver Implementations
 
+> [!WARNING]
+> **Simulation Mode Only**: Currently, all drivers are implemented as simulations. They do not establish real network connections to devices. See [TODO.md](../TODO.md) for the plan to implement real transport.
+
+
 ## Cisco IOS Driver (`nauto_drivers::drivers::cisco_ios`)
 - Uses `async-ssh2-tokio` to establish a CLI session over SSH (port 22) with credentials sourced from the OS keyring.
 - Every operation is executed as real CLI commands (command batches run verbatim, config pushes run `configure terminal`, stream the snippet, then `write memory`).
@@ -36,4 +40,3 @@
 ### Test Coverage
 - `driver_capabilities_reported` ensures registry wiring remains intact after capability tweaks.
 - `cargo test -p nauto_drivers` compiles the new SSH/NETCONF/NX-API integrations; dedicated transport mocks will be added in a follow-up to exercise failure paths without real hardware.
-

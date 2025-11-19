@@ -26,4 +26,3 @@ Derived from `plan.md` Section 1.
 - [ ] Non-goals communicated to prevent scope creep.
 
 Document owner: Core architecture team.
-

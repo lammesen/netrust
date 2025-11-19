@@ -27,4 +27,3 @@ Participants: Network Automation Lead, Platform Engineering Lead, Security Archi
 - Reference this file in onboarding materials.
 
 Sign-off recorded by: architecture@netrust.local
-
