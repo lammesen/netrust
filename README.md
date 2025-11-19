@@ -7,6 +7,8 @@ Cross-platform network automation toolkit in Rust. Milestones 1–3 deliver:
 - Secure CLI/TUI + Tauri GUI control center.
 - Compliance, telemetry, scheduling, GitOps, plugin marketplace, approvals/workflows.
 
+> **Note**: This project is in active development. While drivers now use real transport protocols (SSH, NETCONF, HTTP), they should be considered experimental and tested in a lab environment before production use.
+
 ## Quick Links
 - [Release Notes](docs/release_notes.md)
 - [Quick Start](docs/quick_start.md)

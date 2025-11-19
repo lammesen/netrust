@@ -4,10 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+age = "0.11.1"
 anyhow = "1"
 async-trait = "0.1"
 keyring = "2"
 nauto_model = { path = "../nauto_model" }
 serde_json = "1"
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+tracing = "0.1"
 

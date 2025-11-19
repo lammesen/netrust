@@ -44,6 +44,19 @@ impl DeviceDriver for MockDriver {
         device: &Device,
         action: DriverAction<'_>,
     ) -> Result<DriverExecutionResult> {
+        if device.tags.iter().any(|t| t == "mock:fail") {
+            anyhow::bail!("simulated failure for {}", device.name);
+        }
+        
+        if let nauto_model::JobKind::CommandBatch { commands } = action.job_kind() {
+            if commands.iter().any(|c| c == "fail") {
+                anyhow::bail!("simulated command failure");
+            }
+            if commands.iter().any(|c| c == "timeout") {
+                tokio::time::sleep(std::time::Duration::from_secs(3600)).await;
+            }
+        }
+
         let mut result = DriverExecutionResult::default();
         result
             .logs

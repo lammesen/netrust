@@ -1,7 +1,7 @@
 devices:
   - id: core-r1
     name: Core-R1
-    device_type: CiscoIos
+    device_type: cisco_ios
     mgmt_address: 10.0.0.1
     credential:
       name: lab-default
@@ -15,7 +15,7 @@ devices:
       supports_dry_run: false
   - id: edge-j1
     name: Edge-J1
-    device_type: JuniperJunos
+    device_type: juniper_junos
     mgmt_address: 10.0.0.2
     credential:
       name: lab-default
@@ -29,7 +29,7 @@ devices:
       supports_dry_run: true
   - id: agg-eos-1
     name: Agg-EOS-1
-    device_type: AristaEos
+    device_type: arista_eos
     mgmt_address: 10.0.0.3
     credential:
       name: lab-default
@@ -43,7 +43,7 @@ devices:
       supports_dry_run: false
   - id: spine-nxapi
     name: Spine-NXAPI
-    device_type: CiscoNxosApi
+    device_type: cisco_nxos_api
     mgmt_address: spine1.nxos.local
     credential:
       name: nxapi-token
@@ -57,7 +57,7 @@ devices:
       supports_dry_run: true
   - id: meraki-net-1
     name: Meraki-Net-1
-    device_type: MerakiCloud
+    device_type: meraki_cloud
     mgmt_address: network_ABC123
     credential:
       name: meraki-api

@@ -1,0 +1,4 @@
+{"job_id":"1734f878-9d1b-4399-bde1-1e6e0a978371","device_id":"mock-r1","status":"Success","logs":["[mock] device=mock-r1 action=Job(CommandBatch { commands: [\"show version\"] })"],"diff_present":true}
+{"job_id":"103ff6df-9696-434d-ba78-21c0feef6622","device_id":"mock-r1","status":"Failed","logs":["error: simulated command failure"],"diff_present":false}
+{"job_id":"3f448969-7696-4835-a8a9-72bd6a98e8f2","device_id":"mock-r1","status":"Success","logs":["[mock] device=mock-r1 action=Job(CommandBatch { commands: [\"show version\"] })"],"diff_present":true}
+{"job_id":"7e6eb4f4-4625-4129-a550-683481723037","device_id":"mock-r1","status":"Failed","logs":["error: simulated command failure"],"diff_present":false}

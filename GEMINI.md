@@ -94,3 +94,5 @@ cd apps/web-ui
     *   **Async/Await:** Heavy usage of Tokio for asynchronous operations, especially in drivers and the job engine.
     *   **Traits:** Core functionality is defined via traits (e.g., `DeviceDriver`, `CredentialStore`) to ensure modularity and testability.
     *   **Observability:** Uses the `tracing` crate for instrumentation.
+*   **Task Management:**
+    *   Always check off completed tasks in `TODO.md` or relevant tracking files to maintain an up-to-date status.

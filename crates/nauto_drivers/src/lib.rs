@@ -12,6 +12,14 @@ pub enum DriverAction<'a> {
     Job(&'a JobKind),
 }
 
+impl<'a> DriverAction<'a> {
+    pub fn job_kind(&self) -> &'a JobKind {
+        match self {
+            DriverAction::Job(kind) => kind,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct DriverExecutionResult {
     pub logs: Vec<String>,

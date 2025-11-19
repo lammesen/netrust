@@ -1,0 +1,4 @@
+{"job_id":"1734f878-9d1b-4399-bde1-1e6e0a978371","job_name":"E2E Test Job","success":1,"failure":0,"started_at":"2025-11-19T14:20:40.625077+00:00","finished_at":"2025-11-19T14:20:40.626086+00:00","failed_devices":[]}
+{"job_id":"103ff6df-9696-434d-ba78-21c0feef6622","job_name":"Fail Test","success":0,"failure":1,"started_at":"2025-11-19T14:20:41.197515+00:00","finished_at":"2025-11-19T14:20:41.197751+00:00","failed_devices":["mock-r1"]}
+{"job_id":"3f448969-7696-4835-a8a9-72bd6a98e8f2","job_name":"E2E Test Job","success":1,"failure":0,"started_at":"2025-11-19T14:22:13.166882+00:00","finished_at":"2025-11-19T14:22:13.167581+00:00","failed_devices":[]}
+{"job_id":"7e6eb4f4-4625-4129-a550-683481723037","job_name":"Fail Test","success":0,"failure":1,"started_at":"2025-11-19T14:22:13.378057+00:00","finished_at":"2025-11-19T14:22:13.378309+00:00","failed_devices":["mock-r1"]}
